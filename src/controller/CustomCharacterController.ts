@@ -2,12 +2,13 @@ import { Controller, Delete, Get, Param, Post, Put, Req, Res } from 'routing-con
 import { AppDataSource } from '../data-source'
 import { Character } from '../entity/Character'
 import { validate, ValidationError } from 'class-validator'
-import { Request, Response } from 'express'
+import { NextFunction, Request, response, Response } from 'express'
 import { AController } from './AController'
 import { CustomCharacter } from '../entity/CustomCharacter'
 import { DiscordUser } from '../entity/DiscordUser'
+import fetch from 'node-fetch'
 
-//Maybe this should be a map or somehthing. its giving me weird vibes
+// Maybe this should be a map or somehthing. its giving me weird vibes
 const ALLOWED_STATS = {
   height: 1,
   weight: 2,
@@ -21,9 +22,11 @@ const ALLOWED_STATS = {
 
 const MISSING_ID_ERR: string = 'ID must be provided and numeric'
 const MISSING_STAT_ERR: string = `Stat index must be provided and be a number between 1 and ${Object.values(ALLOWED_STATS).length}`
+const INTERNAL_CHAR_ERR: string = 'Internal character database is unavailable.'
 const STAT_OUT_OF_RANGE_ERR = `Stat index must be between 0 and ${Object.values(ALLOWED_STATS).length}`
 const UNAUTHORIZED_ERR: string = 'Only the character\'s creator can make changes'
-
+const CHARACTER_JSON_ERR: string = 'URL to the character source must be provided'
+const CHAR_ENTITY_ERR: string = 'Problem exists with provided hero file.'
 
 @Controller()
 export class CustomCharacterController extends AController {
@@ -49,7 +52,7 @@ export class CustomCharacterController extends AController {
   }
 
   @Get('/characters/:id')
-  async getOneMeme (@Param('id') id: number, @Res() res: Response): Promise<any> {
+  async getOneCharacter (@Param('id') id: number, @Res() res: Response): Promise<any> {
     if (!id) {
       return this.exitWithMessage(res, AController.STATUS_CODES.BAD_REQUEST, MISSING_ID_ERR)
     }
@@ -60,6 +63,19 @@ export class CustomCharacterController extends AController {
         `Character of ID ${id} is not found`)
     }
     return res.json(returnChar)
+  }
+
+  @Get('/characters/newroll/')
+  async getStatCharacters (@Req() req: Request, @Res() res: Response): Promise<any> {
+    const characterCount = Object.values(ALLOWED_STATS).length
+    const characters = await this.characterRepo.createQueryBuilder('character')
+      .addOrderBy('random')
+      .limit(characterCount)
+      .getMany()
+    if (characters?.length === characterCount) {
+      return res.json(characters)
+    }
+    this.exitWithMessage(res, AController.STATUS_CODES.INTERNAL_SERVER_ERROR, INTERNAL_CHAR_ERR)
   }
 
   /**
@@ -77,150 +93,83 @@ export class CustomCharacterController extends AController {
    * @param res
    */
   @Put('/characters/reroll/')
-  async post (@Req() req: Request, @Res() res: Response): Promise<any> {
-    const id:number = parseInt(<string>req.query.charID)
-    if(!id) return this.exitWithMessage(res,AController.STATUS_CODES.BAD_REQUEST,MISSING_ID_ERR)
-    const stat:number= parseInt(<string>req.query.stat)
-    if(!stat) return this.exitWithMessage(res,AController.STATUS_CODES.BAD_REQUEST,MISSING_STAT_ERR)
-    const statValid :boolean = Object.values(ALLOWED_STATS).includes(stat)
-    const oldChar : CustomCharacter = await this.customCharacterRepo.findOneBy({id})
-    if(!oldChar) return this.exitWithMessage(res,AController.STATUS_CODES.ITEM_NOT_FOUND,`Character of ID ${id} is not found`)
-    if(oldChar.creator.uID!==req.headers.uID)
-    {
-      return this.exitWithMessage(res,AController.STATUS_CODES.UNAUTHORIZED_STATUS,UNAUTHORIZED_ERR)
+  async rerollOneStat (@Req() req: Request, @Res() res: Response): Promise<any> {
+    const id: number = parseInt(req.query.charID as string)
+    if (!id) return this.exitWithMessage(res, AController.STATUS_CODES.BAD_REQUEST, MISSING_ID_ERR)
+    const stat: number = parseInt(req.query.stat as string)
+    if (!stat) return this.exitWithMessage(res, AController.STATUS_CODES.BAD_REQUEST, MISSING_STAT_ERR)
+    const statValid: boolean = Object.values(ALLOWED_STATS).includes(stat)
+    if (!statValid) return this.exitWithMessage(res, AController.STATUS_CODES.BAD_REQUEST, STAT_OUT_OF_RANGE_ERR)
+    const statName: string = Object.keys(ALLOWED_STATS)[stat - 1]
+    const oldChar: CustomCharacter = await this.customCharacterRepo.findOneBy({ id })
+    if (!oldChar) {
+      return this.exitWithMessage(res, AController.STATUS_CODES.ITEM_NOT_FOUND,
+      `Character of ID ${id} is not found`)
     }
-    const newChar : CustomCharacter = this.
-    const newMeme: Meme = await this.memeBuilder(req, res)
-    newMeme.mCreator = Object.assign(new RegisteredUser(), { uID: req.headers.uID, userName: req.headers.userName })
-    const violations: ValidationError[] = await validate(newMeme)
-    if (violations.length) {
-      return this.exitWithViolations(res, violations)
+    if (oldChar.creator.uID !== req.headers.uID) {
+      return this.exitWithMessage(res, AController.STATUS_CODES.UNAUTHORIZED_STATUS, UNAUTHORIZED_ERR)
     }
-    return await this.memeRepo.save(newMeme)
+    const statCharacter: Character = await this.characterRepo.createQueryBuilder()
+      .addOrderBy('random')
+      .getOne()
+    if (!statCharacter) {
+      return this.exitWithMessage(res, AController.STATUS_CODES.INTERNAL_SERVER_ERROR,
+        INTERNAL_CHAR_ERR)
+    }
+    oldChar[statName] = statCharacter[statName]
+    await this.customCharacterRepo.save(oldChar)
+    return res.json({ c1: oldChar, c2: statCharacter })
   }
 
-  /**
-   * PUT handler for /memes/:memeID
-   * Used to modify and update saved memes.
-   * The paths that the code can take
-   * 1) No Meme ID / Invalid Meme ID => Exit with status 400
-   * 2) Meme ID doesn't point to an existing command => Exit with Error 404
-   * 3) Meme Creator does not match logged in creator => Exit with Error 401
-   * 4) Meme edits introduce validation errors => Exit with Error 422 and validation error messages
-   * 5) All is well => Meme is saved and returned
-   * @param memeID ID of the meme to be updated
-   * @param req Client request
-   * @param res Server response
-   */
-  @Put('/memes/:memeID')
-  async update (@Param('memeID') memeID: number, @Req() req: Request, @Res() res: Response): Promise<any> {
-    if (!memeID) {
-      return this.exitWithMessage(res, AController.STATUS_CODES.BAD_REQUEST, MISSING_ID_ERR)
+  @Post('/characters/')
+  async addCharacter (@Req() req: Request, @Res() res: Response): Promise<any> {
+    const uID: string = req.headers.uID as string
+    let creator: DiscordUser = await this.userRepo.findOneBy({ uID })
+    if (!creator) {
+      const { userName, displayName, avatar } = req.headers
+      const characters: CustomCharacter[] = []
+      const hiScore = 0
+      creator = Object.assign(new DiscordUser(), { uID, userName, displayName, avatar, characters, hiScore })
+      await this.userRepo.save(creator)
     }
-    const user: registereduser =
-      object.assign(new registereduser(), { uid: req.headers.uid, username: req.headers.username })
-
-    const oldMeme: Meme = await this.memeRepo.findOneBy({ memeID })
-    if (!oldMeme) {
-      return this.exitWithMessage(res, AController.STATUS_CODES.ITEM_NOT_FOUND, `Meme of ID ${memeID} is not found`)
-    }
-
-    if (user.uID !== oldMeme.mCreator.uID) {
-      return this.exitWithMessage(res, AController.STATUS_CODES.UNAUTHORIZED_STATUS,
-        EDIT_UNAUTHORIZED_ERR)
-    }
-    const newMeme: Meme = await this.memeBuilder(req, res)
-    const violations: ValidationError[] = await validate(newMeme)
-    if (violations.length) {
-      return this.exitWithViolations(res, violations)
-    }
-    newMeme.memeID = oldMeme.memeID
-    return await this.memeRepo.save(newMeme)
+    const { strength, weight, height, intelligence, power, combat, durability, speed, name, url } = req.body
+    const wins = 0
+    const newCharacter = Object.assign(new CustomCharacter(), {
+      strength, weight, height, name, intelligence, power, combat, durability, speed, url, wins, creator
+    })
+    const violations: ValidationError[] = await validate(newCharacter)
+    return violations.length
+      ? this.exitWithViolations(res, violations)
+      : await this.customCharacterRepo.save(newCharacter)
   }
 
-  /**
-   * DELETE Route handler for /memes/:memeID
-   * Takes in request, response, and param
-   * Paths are as follows
-   * 1) Meme ID invalid / not provided => Exit with Error 400
-   * 2) Meme ID provided does not point to a valid command => Exit with Error 404
-   * 3) Logged-in user does not match the meme creator => Exit with Error 401
-   * 4) Deleting selected meme would cause conflicts with commands => Exit with Error 409
-   * 5) All is well. Delete command and return results
-   * @param memeID ID of command to be deleted
-   * @param req Client Request
-   * @param res Server Response
-   */
-  @Delete('/memes/:memeID')
-  async delete (@Param('memeID') memeID: number, @Req() req: Request, @Res() res: Response): Promise<any> {
-    if (!memeID) {
-      return this.exitWithMessage(res, AController.STATUS_CODES.BAD_REQUEST, MISSING_ID_ERR)
+  @Put('/characters/import/:importURL')
+  async refreshCharacterDatabase (@Req() req: Request, @Res() res: Response): Promise<any> {
+    const uID: string = req.headers.uID as string
+    const adminUID = process.env.ADMIN_USER_ID
+    if (uID !== adminUID) {
+      return this.exitWithMessage(res, AController.STATUS_CODES.UNAUTHORIZED_STATUS)
     }
-
-    const user: RegisteredUser =
-      Object.assign(new RegisteredUser(), { uID: req.headers.uID, userName: req.headers.userName })
-
-    const memeToRemove: Meme = await this.memeRepo.findOneBy({ memeID: parseInt(req.params.memeID) })
-    if (!memeToRemove) {
-      return this.exitWithMessage(res, AController.STATUS_CODES.ITEM_NOT_FOUND, `Meme of ID ${memeID} is not found`)
-    }
-    if (user.uID !== memeToRemove.mCreator.uID) {
-      return this.exitWithMessage(res, AController.STATUS_CODES.UNAUTHORIZED_STATUS,
-        DELETE_UNAUTHORIZED_ERR)
-    }
-    try {
-      res.statusCode = AController.STATUS_CODES.NO_CONTENT.code
-      return await this.memeRepo.remove(memeToRemove)
-    } catch (e) {
-      return this.exitWithMessage(res, AController.STATUS_CODES.CONFLICT,
-        CONFLICT_ERR)
-    }
-  }
-
-  /**
-   * DELETE Route handler for /memes/
-   * Only used when ID is not provided.
-   * Returns error 400
-   * @param res Server Response
-   */
-  @Delete('/memes/')
-  async deleteNoID (@Res() res: Response): Promise<any> {
-    return this.exitWithMessage(res, AController.STATUS_CODES.BAD_REQUEST, MISSING_ID_ERR)
-  }
-
-  /**
-   * PUT Route handler for /memes/
-   * Only used when ID is not provided.
-   * Returns error 400
-   * @param res Server Response
-   */
-  @Put('/memes/')
-  async updateNoID (@Res() res: Response): Promise<any> {
-    return this.exitWithMessage(res, AController.STATUS_CODES.BAD_REQUEST, MISSING_ID_ERR)
-  }
-
-  /**
-   * This function takes in a request and response, and works to build meme objects as they exist thus far.
-   * Once constructed and validated, it is returned to the appropriate route.
-   * @param req Client request
-   * @param res Server response
-   */
-  async memeBuilder (req: Request, res: Response): Promise<Meme> {
-    const newMeme: Meme = Object.assign(new Meme(),
-      {
-        mDescription: req.body.mDescription,
-        mImageRoute: req.body.mImageRoute
-      })
-    if (req.body?.tags[0]) {
-      if (req.body.tags[0] instanceof String) {
-        const tags: string[] = req.body.tags
-        newMeme.tags = await this.buildTags(tags)
+    if (!req.params.importURL) return this.exitWithMessage(res, AController.STATUS_CODES.BAD_REQUEST, CHARACTER_JSON_ERR)
+    const charactersResponse = await fetch(req.params.importURL)
+    const characterArr: any[] = await charactersResponse.json()
+    const badCharacters = []
+    const goodCharacters = []
+    for (const c of characterArr) {
+      const newCharacter = Object.assign(new Character(), c)
+      const violations: ValidationError[] = await validate(newCharacter)
+      if (violations.length) {
+        badCharacters.push({ character: newCharacter, violations })
       } else {
-        newMeme.tags = req.body.tags
+        goodCharacters.push(newCharacter)
       }
-      return newMeme
+    }
+    if (goodCharacters.length > 0) {
+      await this.characterRepo.delete({})
+      await this.characterRepo.save(goodCharacters)
+      return res.json({ charactersAdded: goodCharacters.length, unprocessableCharacters: badCharacters })
     } else {
-      this.exitWithMessage(res, AController.STATUS_CODES.BAD_REQUEST.code, 'Tags must be provided')
+      return this.exitWithMessage(res, AController.STATUS_CODES.UNPROCESSABLE_ENTITY, CHAR_ENTITY_ERR)
     }
   }
 }
