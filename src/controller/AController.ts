@@ -1,6 +1,6 @@
 import { Controller, Head, Req } from 'routing-controllers'
 import fetch, { Headers } from 'node-fetch'
-import { validate, ValidationError } from 'class-validator'
+import { ValidationError } from 'class-validator'
 import { Request, Response } from 'express'
 
 const DISCORD_URL: string = 'https://discord.com/api/v9/users/@me'
@@ -47,9 +47,15 @@ export abstract class AController {
       fetchHeaders.append(AUTHORIZATION_HEADER, authToken)
       const response: any = await fetch(DISCORD_URL, { method: 'GET', headers: fetchHeaders })
       const discordUser: any = await response.json()
-      return (discordUser.id && discordUser.username)
-        ? `${discordUser?.id}${AController.DELIM}${discordUser?.username}`
-        : null
+      if (discordUser.id && discordUser.username) {
+        const avatarLink = discordUser.avatar
+          ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.webp`
+          // TODO remove this line and instead return empty string when no avatar if default pfp asset is created
+          //  on frontend
+          : 'https://discord.com/assets/1f0bfc0865d324c2587920a7d80c609b.png'
+        const displayName = discordUser.displayName ?? ''
+        return `${discordUser.id}${AController.DELIM}${discordUser.username}${AController.DELIM}${displayName}${AController.DELIM}${avatarLink}`
+      }
     }
     return null
   }
@@ -87,30 +93,6 @@ export abstract class AController {
       errors.push({ [error.property]: Object.values(error.constraints)[0] })
     }
     return res.json(errors)
-  }
-
-  /**
-     * This function takes in a string array and uses them to create instances of Tag objects
-     * After an instance of a Tag object is created, it is validated against the validation rules outlined for Tag
-     * entities. If there are errors, the tag is simply dropped from the list. If there are no errors, we ensure
-     * The tag does not already exist in the list.
-     * If it does, we skip over it.
-     * If it does not, we add it to the return array of Tag objects.
-     * Once all the tags are loops through, return the newly generated array.
-     * @param tags String array of tagNames.
-     */
-  async buildTags (tags: string[]): Promise<Tag[]> {
-    const tagReturn: Tag[] = []
-    console.log(tags)
-    for (const tag of tags) {
-      console.log(tag)
-      const newTag: Tag = Object.assign(new Tag(), { tagName: tag.toLowerCase() })
-      const violations: ValidationError[] = await validate(newTag)
-      if (!violations.length && !tagReturn.includes(newTag)) {
-        tagReturn.push(newTag)
-      }
-    }
-    return tagReturn
   }
 
   /**
