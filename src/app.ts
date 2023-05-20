@@ -45,6 +45,8 @@ const ACCOUNT_CHECKER = async (req: Request, res: Response, next: NextFunction):
     const userFields: string[] = userInfo.split(AController.DELIM)
     req.headers.uID = userFields[0]
     req.headers.userName = userFields[1]
+    req.headers.displayName = userFields[2]
+    req.headers.avatar = userFields[3]
     next()
   } else {
     return res.json({

@@ -23,6 +23,7 @@ import { Request, Response } from 'express'
 import { AController } from './AController'
 
 const MISSING_ID_ERR: string = 'ID must be provided and numeric'
+
 const EDIT_UNAUTHORIZED_ERR: string = 'Only the meme creator can update their command'
 const DELETE_UNAUTHORIZED_ERR: string = 'Only the meme creator can delete their command'
 const CONFLICT_ERR: string = 'Cannot delete a meme which is used in commands.'
