@@ -1,15 +1,11 @@
-/**
- * @author Tass Suderman, Levi Krozser
- */
 import 'reflect-metadata'
 import { DataSource } from 'typeorm'
-import { Meme } from './entity/Meme'
 import { Character } from './entity/Character'
-import { DiscordUser, RegisteredUser } from './entity/DiscordUser'
-import { Tag } from './entity/Tag'
+import { DiscordUser } from './entity/DiscordUser'
+import { CustomCharacter } from './entity/CustomCharacter'
 
 export const AppDataSource = new DataSource({
-  type: 'mysql',
+  type: 'better-sqlite3',
   database: 'crimson-nimbus.db',
   synchronize: true,
   logging: false,
@@ -19,4 +15,5 @@ export const AppDataSource = new DataSource({
 })
 
 // TODO: Come back and fix this later
+//  Change datasource from local sqlite to gcloud mysql
 //  Refer to https://orkhan.gitbook.io/typeorm/docs/data-source

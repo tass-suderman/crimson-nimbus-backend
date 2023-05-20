@@ -1,11 +1,5 @@
-/**
- * @author Levi Krozser + Tass Suderman
- * Abstract controller class
- */
-
 import { Controller, Head, Req } from 'routing-controllers'
 import fetch, { Headers } from 'node-fetch'
-import { Tag } from '../entity/Tag'
 import { validate, ValidationError } from 'class-validator'
 import { Request, Response } from 'express'
 

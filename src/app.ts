@@ -13,7 +13,7 @@ import { useExpressServer } from 'routing-controllers'
 import { NextFunction, Request, Response } from 'express'
 
 // Backend server port
-const port: number = 3030
+const port: number = parseInt(process.env.port) || 7455
 
 const NOT_LOGGED_IN_ERR: string = 'You must be logged in to a discord session to perform this action'
 // todo maybe ? https://github.com/typestack/routing-controllers#using-authorization-features
@@ -22,6 +22,7 @@ const ROUTE_NOT_FOUND: any = { code: AController.STATUS_CODES.ITEM_NOT_FOUND.cod
 
 // CORS options
 const corsOptions = {
+  // TODO Allow for GCloud origin here
   origin: /localhost:\d{4,5}$/i,
   credentials: true,
   allowedHeaders: 'Origin,X-Requested-With,Content-Type,Accept,Authorization',
