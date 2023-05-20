@@ -65,11 +65,11 @@ export class CustomCharacterController extends AController {
     return res.json(returnChar)
   }
 
-  @Get('/characters/newroll/')
+  @Get('/characternewroll/')
   async getStatCharacters (@Req() req: Request, @Res() res: Response): Promise<any> {
     const characterCount = Object.values(ALLOWED_STATS).length
     const characters = await this.characterRepo.createQueryBuilder('character')
-      .addOrderBy('random')
+      .addOrderBy('random()')
       .limit(characterCount)
       .getMany()
     if (characters?.length === characterCount) {
@@ -81,18 +81,18 @@ export class CustomCharacterController extends AController {
   /**
    * Reroll character's stat route
    * stats:
-   * 0 = height
-   * 1 = weight
-   * 2 = intelligence
-   * 3 = strength
-   * 4 = speed
-   * 5 = durability
-   * 6 = combat
-   * 7 = power
+   * 1 = height
+   * 2 = weight
+   * 3 = intelligence
+   * 4 = strength
+   * 5 = speed
+   * 6 = durability
+   * 7 = combat
+   * 8 = power
    * @param req
    * @param res
    */
-  @Put('/characters/reroll/')
+  @Put('/characterreroll/')
   async rerollOneStat (@Req() req: Request, @Res() res: Response): Promise<any> {
     const id: number = parseInt(req.query.charID as string)
     if (!id) return this.exitWithMessage(res, AController.STATUS_CODES.BAD_REQUEST, MISSING_ID_ERR)
@@ -110,7 +110,7 @@ export class CustomCharacterController extends AController {
       return this.exitWithMessage(res, AController.STATUS_CODES.UNAUTHORIZED_STATUS, UNAUTHORIZED_ERR)
     }
     const statCharacter: Character = await this.characterRepo.createQueryBuilder()
-      .addOrderBy('random')
+      .addOrderBy('random()')
       .getOne()
     if (!statCharacter) {
       return this.exitWithMessage(res, AController.STATUS_CODES.INTERNAL_SERVER_ERROR,

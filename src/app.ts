@@ -1,6 +1,17 @@
-/**
- * @author Tass Suderman, Levi Krozser
- */
+// TODO
+//  Add login route for discord users. Our DB has content specific to discord users that will not be returned in a regular query
+//  Test reroll stat paths
+//  Add battle route
+//    Takes in character's ID and user's Auth header
+//    Returns opponent and win/loss status as boolean
+//    Add Win condition
+//      Increase Character's score
+//    Add Losing Condition
+//      If necessary, update player's hi score
+//   After the above are completed and TESTED:
+//      Clean up code, remove extra code
+//      Test deployment on GAE and change datasource to Google-Hosted MySQL server
+
 import * as express from 'express'
 import * as bodyParser from 'body-parser'
 import { AppDataSource } from './data-source'

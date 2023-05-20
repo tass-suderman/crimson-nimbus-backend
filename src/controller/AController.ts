@@ -26,7 +26,7 @@ export abstract class AController {
 
   // UUID and Username delimited by :, because those are not allowed in user ids or name
   // source: https://discord.com/developers/docs/resources/user
-  public static readonly DELIM: string = ':'
+  public static readonly DELIM: string = ':::'
 
   public abstract readonly SORT_FIELDS: string[]
 
