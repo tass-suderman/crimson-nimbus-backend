@@ -5,13 +5,13 @@ import * as express from 'express'
 import * as bodyParser from 'body-parser'
 import { AppDataSource } from './data-source'
 import * as cors from 'cors'
-import { MemeController } from './controller/MemeController'
-import { CommandController } from './controller/CommandController'
-import { TagController } from './controller/TagController'
 import { AController } from './controller/AController'
 import { useExpressServer } from 'routing-controllers'
 import { NextFunction, Request, Response } from 'express'
+import { CustomCharacterController } from './controller/CustomCharacterController'
+import { config } from 'dotenv'
 
+config()
 // Backend server port
 const port: number = parseInt(process.env.port) || 7455
 
@@ -72,7 +72,7 @@ const NOT_FOUND_HANDLER = async (req: Request, res: Response): Promise<any> => {
   }
 }
 
-const controllers: Array<typeof AController> = [MemeController, CommandController, TagController]
+const controllers: Array<typeof AController> = [CustomCharacterController]
 
 AppDataSource.initialize().then(async () => {
   // app setup

@@ -46,69 +46,68 @@ const IMAGE_SUFFIX_ERR = 'Image suffix must not be shorter than $constraint1 cha
 
 @Entity()
 export class Character {
-  @PrimaryColumn({ type: 'number' })
+  @PrimaryColumn()
   @Min(ID_MIN, { message: ID_BOUNDARY_ERROR })
     id: number
 
   @Column({ type: 'varchar', length: NAME_MAX })
-  @Min(NAME_MIN)
   @Length(NAME_MIN, NAME_MAX,
     { message: NAME_LENGTH_ERR })
   @IsNotEmpty()
     name: string
 
-  @Column({ type: 'number' })
+  @Column({ type: 'integer' })
   @Min(WEIGHT_MIN, { message: WEIGHT_BOUNDARY_ERROR })
   @IsNotEmpty()
     weight: number
 
-  @Column({ type: 'number' })
+  @Column({ type: 'integer' })
   @Min(HEIGHT_MIN, { message: HEIGHT_BOUNDARY_ERROR })
   @IsNotEmpty()
     height: number
 
-  @Column({ type: 'number' })
+  @Column({ type: 'integer' })
   @Min(INT_MIN, { message: INT_ERR })
   @Max(INT_MAX, { message: INT_ERR })
   @IsNotEmpty()
     intelligence: number
 
-  @Column({ type: 'number' })
+  @Column({ type: 'integer' })
   @Min(STR_MIN, { message: STR_ERR })
   @Max(STR_MAX, { message: STR_ERR })
   @IsNotEmpty()
     strength: number
 
-  @Column({ type: 'number' })
+  @Column({ type: 'integer' })
   @Min(DUR_MIN, { message: DUR_ERR })
   @Max(DUR_MAX, { message: DUR_ERR })
   @IsNotEmpty()
     durability: number
 
-  @Column({ type: 'number' })
+  @Column({ type: 'integer' })
   @Min(COM_MIN, { message: COM_ERR })
   @Max(COM_MAX, { message: COM_ERR })
   @IsNotEmpty()
     combat: number
 
-  @Column({ type: 'number' })
+  @Column({ type: 'integer' })
   @Min(POW_MIN, { message: POW_ERR })
   @Max(POW_MAX, { message: POW_ERR })
   @IsNotEmpty()
     power: number
 
-  @Column({ type: 'number' })
+  @Column({ type: 'integer' })
   @Min(SPD_MIN, { message: SPD_ERR })
   @Max(SPD_MAX, { message: SPD_ERR })
   @IsNotEmpty()
     speed: number
 
-  @Column({ type: 'text' })
+  @Column({ type: 'varchar' })
   @MinLength(IMAGE_SUFFIX_MIN, { message: IMAGE_SUFFIX_ERR })
   @IsNotEmpty()
     imageSuffix: string
 
-  @Column({ type: 'text' })
+  @Column({ type: 'varchar' })
   @MinLength(IMAGE_PREFIX_MIN, { message: IMAGE_PREFIX_ERR })
   @IsNotEmpty()
     imagePrefix: string

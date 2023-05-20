@@ -1,5 +1,5 @@
 import { IsOptional, Length, MaxLength, Min } from 'class-validator'
-import { Column, OneToMany, PrimaryColumn } from 'typeorm'
+import { Column, Entity, OneToMany, PrimaryColumn } from 'typeorm'
 import { CustomCharacter } from './CustomCharacter'
 
 const USER_ID_MIN: number = 17
@@ -15,6 +15,7 @@ const AVATAR_LENGTH_ERR: string = 'Avatar cannot exceed $constraint1 characters'
 const HIGH_SCORE_MIN: number = 0
 const HIGH_SCORE_MIN_ERR = 'High score cannot be smaller than 0'
 
+@Entity()
 export class DiscordUser {
   @PrimaryColumn()
   @Length(USER_ID_MIN, USER_ID_MAX,
@@ -22,25 +23,25 @@ export class DiscordUser {
   @IsOptional()
     uID: string
 
-  @Column({ type: 'string', length: 32 })
+  @Column({ type: 'varchar', length: 32 })
   @Length(USER_NAME_MIN, USER_NAME_MAX,
     { message: USER_NAME_LENGTH_ERR })
   @IsOptional()
     userName: string
 
-  @Column({ type: 'string', length: 32 })
+  @Column({ type: 'varchar', length: 32 })
   @MaxLength(DISPLAY_NAME_MAX,
     { message: DISPLAY_NAME_LENGTH_ERR })
   @IsOptional()
     displayName: string
 
-  @Column({ type: 'string' })
+  @Column({ type: 'varchar' })
   @MaxLength(AVATAR_MAX,
     { message: AVATAR_LENGTH_ERR })
   @IsOptional()
     avatar: string
 
-  @Column({ type: 'number' })
+  @Column({ type: 'integer' })
   @Min(HIGH_SCORE_MIN, { message: HIGH_SCORE_MIN_ERR })
   @IsOptional()
     hiScore: number

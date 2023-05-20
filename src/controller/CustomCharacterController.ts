@@ -147,29 +147,35 @@ export class CustomCharacterController extends AController {
   async refreshCharacterDatabase (@Req() req: Request, @Res() res: Response): Promise<any> {
     const uID: string = req.headers.uID as string
     const adminUID = process.env.ADMIN_USER_ID
+    console.log(req.params.importURL)
+
     if (uID !== adminUID) {
       return this.exitWithMessage(res, AController.STATUS_CODES.UNAUTHORIZED_STATUS)
     }
     if (!req.params.importURL) return this.exitWithMessage(res, AController.STATUS_CODES.BAD_REQUEST, CHARACTER_JSON_ERR)
-    const charactersResponse = await fetch(req.params.importURL)
-    const characterArr: any[] = await charactersResponse.json()
-    const badCharacters = []
-    const goodCharacters = []
-    for (const c of characterArr) {
-      const newCharacter = Object.assign(new Character(), c)
-      const violations: ValidationError[] = await validate(newCharacter)
-      if (violations.length) {
-        badCharacters.push({ character: newCharacter, violations })
-      } else {
-        goodCharacters.push(newCharacter)
+    try {
+      const characterArr = await import(req.params.importURL)
+      const badCharacters = []
+      const goodCharacters = []
+      for (const c of characterArr) {
+        const newCharacter = Object.assign(new Character(), c)
+        const violations: ValidationError[] = await validate(newCharacter)
+        if (violations.length) {
+          badCharacters.push({ character: newCharacter, violations })
+        } else {
+          goodCharacters.push(newCharacter)
+        }
       }
-    }
-    if (goodCharacters.length > 0) {
-      await this.characterRepo.delete({})
-      await this.characterRepo.save(goodCharacters)
-      return res.json({ charactersAdded: goodCharacters.length, unprocessableCharacters: badCharacters })
-    } else {
-      return this.exitWithMessage(res, AController.STATUS_CODES.UNPROCESSABLE_ENTITY, CHAR_ENTITY_ERR)
+      if (goodCharacters.length > 0) {
+        await this.characterRepo.delete({})
+        await this.characterRepo.save(goodCharacters)
+        return res.json({ charactersAdded: goodCharacters.length, unprocessableCharacters: badCharacters })
+      } else {
+        console.log(badCharacters[0].violations)
+        return this.exitWithMessage(res, AController.STATUS_CODES.UNPROCESSABLE_ENTITY, CHAR_ENTITY_ERR)
+      }
+    } catch {
+      return this.exitWithMessage(res, AController.STATUS_CODES.BAD_REQUEST)
     }
   }
 }

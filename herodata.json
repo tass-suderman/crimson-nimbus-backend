@@ -12,7 +12,7 @@
 	"weight": 441,
 	"imagePrefix": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/",
 	"imageSuffix": "1-a-bomb.jpg"
-    }, 
+    },
 	{
     "id": 2,
 	"name": "Abe Sapien",
@@ -40,7 +40,7 @@
 	"weight": 90,
 "imagePrefix": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/",
 "imageSuffix": "3-abin-sur.jpg"
-	}, 
+	},
 	{
     "id": 4,
 	"name": "Abomination",
@@ -68,7 +68,7 @@
 	"weight": 122,
 "imagePrefix": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/",
 "imageSuffix": "6-absorbing-man.jpg"
-	}, 
+	},
 	{
     "id": 8,
 	"name": "Adam Strange",
@@ -413,7 +413,7 @@
 	"speed": 35,
 	"durability": 80,
 	"power": 84,
-	"combat": 101,
+	"combat": 100,
 	"height": 185,
 	"weight": 270,
 "imagePrefix": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/",
