@@ -16,7 +16,6 @@ import * as express from 'express'
 import * as bodyParser from 'body-parser'
 import { AppDataSource } from './data-source'
 import * as cors from 'cors'
-import { AController } from './controller/AController'
 import { useExpressServer } from 'routing-controllers'
 import { NextFunction, Request, Response } from 'express'
 import { CustomCharacterController } from './controller/CustomCharacterController'
@@ -27,9 +26,8 @@ config()
 const port: number = parseInt(process.env.port) || 7455
 
 const NOT_LOGGED_IN_ERR: string = 'You must be logged in to a discord session to perform this action'
-// todo maybe ? https://github.com/typestack/routing-controllers#using-authorization-features
 const ROUTE_NOT_FOUND_ERR: string = 'Route not found'
-const ROUTE_NOT_FOUND: any = { code: AController.STATUS_CODES.ITEM_NOT_FOUND.code, message: ROUTE_NOT_FOUND_ERR }
+const ROUTE_NOT_FOUND: any = { code: CustomCharacterController.STATUS_CODES.ITEM_NOT_FOUND.code, message: ROUTE_NOT_FOUND_ERR }
 
 // CORS options
 const corsOptions = {
@@ -51,9 +49,9 @@ const corsOptions = {
  * @param next Next function to be executed
  */
 const ACCOUNT_CHECKER = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
-  const userInfo: string = await AController.getUser(req.headers)
+  const userInfo: string = await CustomCharacterController.getUser(req.headers)
   if (userInfo) {
-    const userFields: string[] = userInfo.split(AController.DELIM)
+    const userFields: string[] = userInfo.split(CustomCharacterController.DELIM)
     req.headers.uID = userFields[0]
     req.headers.userName = userFields[1]
     req.headers.displayName = userFields[2]
@@ -61,7 +59,7 @@ const ACCOUNT_CHECKER = async (req: Request, res: Response, next: NextFunction):
     next()
   } else {
     return res.json({
-      code: AController.STATUS_CODES.UNAUTHORIZED_STATUS.code,
+      code: CustomCharacterController.STATUS_CODES.UNAUTHORIZED_STATUS.code,
       message: NOT_LOGGED_IN_ERR
     })
   }
@@ -78,12 +76,12 @@ const ACCOUNT_CHECKER = async (req: Request, res: Response, next: NextFunction):
  */
 const NOT_FOUND_HANDLER = async (req: Request, res: Response): Promise<any> => {
   if (!res.headersSent) {
-    res.statusCode = AController.STATUS_CODES.ITEM_NOT_FOUND.code
+    res.statusCode = CustomCharacterController.STATUS_CODES.ITEM_NOT_FOUND.code
     return res.json(ROUTE_NOT_FOUND)
   }
 }
 
-const controllers: Array<typeof AController> = [CustomCharacterController]
+const controllers: any[] = [CustomCharacterController]
 
 AppDataSource.initialize().then(async () => {
   // app setup

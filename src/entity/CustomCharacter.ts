@@ -110,6 +110,10 @@ export class CustomCharacter {
   @IsOptional()
     wins: number
 
+  @Column({ type: 'boolean' })
+  @IsOptional()
+    isActive: boolean
+
   @ManyToOne(() => DiscordUser, { eager: true })
   @IsNotEmpty()
     creator: DiscordUser
