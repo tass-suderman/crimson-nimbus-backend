@@ -335,6 +335,9 @@ export class CustomCharacterController {
         user.hiScore = customChar.wins
         await this.userRepo.save(user)
       }
+    } else {
+      customChar.wins++
+      await this.customCharacterRepo.save(customChar)
     }
     return res.json({ win: customCharValuePoints >= opponentValuePoints, c1: customChar, c2: opponent })
   }

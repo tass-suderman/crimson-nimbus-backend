@@ -29,7 +29,8 @@
     "typeorm": "^0.3.10"
   },
   "scripts": {
-    "start": "ts-node-dev --respawn --transpile-only src/app.ts"
+    "start": "ts-node-dev --respawn --transpile-only src/app.ts",
+    "start-cloud": "node build/app.js"
   },
   "overrides": {
     "routing-controllers@0.9.0": {
