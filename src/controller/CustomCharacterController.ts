@@ -12,8 +12,8 @@ const AUTHORIZATION_HEADER: string = 'Authorization'
 
 // Maybe this should be a map or somehthing. its giving me weird vibes
 const ALLOWED_STATS = {
-  height: { index: 1, maxValue: 600 },
-  weight: { index: 2, maxValue: 1000 },
+  height: { index: 1, multiplier: 0.2, maxValue: 600 },
+  weight: { index: 2, multiplier: 0.3, maxValue: 1000 },
   intelligence: { index: 3, multiplier: 0.8 },
   strength: { index: 4, multiplier: 1.1 },
   speed: { index: 5, multiplier: 1.0 },
@@ -21,6 +21,8 @@ const ALLOWED_STATS = {
   combat: { index: 7, multiplier: 1.2 },
   power: { index: 8, multiplier: 1.1 }
 }
+
+const ALLOWED_SIZE: string[] = ['sm', 'md', 'lg', 'xl']
 
 const MISSING_ID_ERR: string = 'ID must be provided and numeric'
 const MISSING_STAT_ERR: string = `Stat index must be provided and be a number between 1 and ${Object.values(ALLOWED_STATS).length}`
@@ -32,6 +34,7 @@ const CHAR_ENTITY_ERR: string = 'Problem exists with provided hero file.'
 const CHAR_NOT_FOUND: string = 'Character of provided ID not found.'
 // TODO If you get this on thw frontend, you are not running the /login route when you should be
 const LOGIN_FAILED: string = 'Login failed. Please log out and login again.'
+const CHAR_INACTIVE: string = 'This character is not on duty.'
 
 @Controller()
 export class CustomCharacterController {
@@ -60,107 +63,14 @@ export class CustomCharacterController {
   private readonly userRepo = AppDataSource.getRepository(DiscordUser)
   private readonly characterRepo = AppDataSource.getRepository(Character)
 
-  @Get('/characters/')
-  async getCharacters (@Req() req: Request): Promise<any> {
-    const where: string = req.query.where as string ?? '%'
-    const queryWhere: string = `%${where}`
-    const sortOptions: any = this.getSortOptions(req)
-    return await this.customCharacterRepo
-      .createQueryBuilder('customChar')
-      .leftJoinAndSelect('customChar.creator', 'creator')
-      .where('creator.userName LIKE :queryWhere', { queryWhere })
-      .orWhere('creator.uID LIKE :queryWhere', { queryWhere })
-      .addOrderBy(sortOptions.field, sortOptions.order)
-      .getMany()
-  }
-
-  @Get('/characters/:id')
-  async getOneCharacter (@Param('id') id: number, @Res() res: Response): Promise<any> {
-    if (!id) {
-      return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.BAD_REQUEST, MISSING_ID_ERR)
-    }
-    const returnChar: CustomCharacter = await this.customCharacterRepo.findOneBy({ id })
-
-    if (!returnChar) {
-      return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.ITEM_NOT_FOUND,
-        `Character of ID ${id} is not found`)
-    }
-    return res.json(returnChar)
-  }
-
-  @Get('/characternewroll/')
-  async getStatCharacters (@Req() req: Request, @Res() res: Response): Promise<any> {
-    const characterCount = Object.values(ALLOWED_STATS).length
-    const characters = await this.characterRepo.createQueryBuilder('character')
-      .addOrderBy('random()')
-      .limit(characterCount)
-      .getMany()
-    if (characters?.length === characterCount) {
-      return res.json(characters)
-    }
-    this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.INTERNAL_SERVER_ERROR, INTERNAL_CHAR_ERR)
-  }
-
   /**
-   * Reroll character's stat route
-   * stats:
-   * 1 = height
-   * 2 = weight
-   * 3 = intelligence
-   * 4 = strength
-   * 5 = speed
-   * 6 = durability
-   * 7 = combat
-   * 8 = power
+   * Login route.
+   * To be executed once when the player first logs in
+   * If changes are made to the player's Discord profile, running this route can refresh their Discord Data
+   * This route returns Discord Data, as well as player data, such as their high score
    * @param req
    * @param res
    */
-  @Put('/characterreroll/')
-  async rerollOneStat (@Req() req: Request, @Res() res: Response): Promise<any> {
-    const id: number = parseInt(req.query.charID as string)
-    if (!id) return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.BAD_REQUEST, MISSING_ID_ERR)
-    const stat: number = parseInt(req.query.stat as string)
-    if (!stat) return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.BAD_REQUEST, MISSING_STAT_ERR)
-    const statValid: boolean = Object.values(ALLOWED_STATS).map(x => x.index).includes(stat)
-    if (!statValid) return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.BAD_REQUEST, STAT_OUT_OF_RANGE_ERR)
-    const statName: string = Object.keys(ALLOWED_STATS)[stat - 1]
-    const oldChar: CustomCharacter = await this.customCharacterRepo.findOneBy({ id })
-    if (!oldChar) {
-      return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.ITEM_NOT_FOUND,
-      `Character of ID ${id} is not found`)
-    }
-    if (oldChar.creator.uID !== req.headers.uID) {
-      return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.UNAUTHORIZED_STATUS, UNAUTHORIZED_ERR)
-    }
-    const statCharacter: Character = await this.characterRepo.createQueryBuilder()
-      .addOrderBy('random()')
-      .getOne()
-    if (!statCharacter) {
-      return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.INTERNAL_SERVER_ERROR,
-        INTERNAL_CHAR_ERR)
-    }
-    oldChar[statName] = statCharacter[statName]
-    await this.customCharacterRepo.save(oldChar)
-    return res.json({ c1: oldChar, c2: statCharacter })
-  }
-
-  @Post('/characters/')
-  async addCharacter (@Req() req: Request, @Res() res: Response): Promise<any> {
-    const uID: string = req.headers.uID as string
-    const creator: DiscordUser = await this.userRepo.findOneBy({ uID })
-    if (!creator) return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.LOGIN_FAILED)
-    const { strength, weight, height, intelligence, power, combat, durability, speed, name, url } = req.body
-    const wins: number = 0
-    const isActive: boolean = true
-    const newCharacter = Object.assign(new CustomCharacter(), {
-      strength, weight, height, name, intelligence, power, combat, durability, speed, url, wins, creator, isActive
-    })
-    const violations: ValidationError[] = await validate(newCharacter)
-    return violations.length
-      ? this.exitWithViolations(res, violations)
-      : await this.customCharacterRepo.save(newCharacter)
-  }
-
   @Post('/login')
   async loginDiscordUser (@Req() req: Request, @Res() res: Response): Promise<any> {
     const uID: string = req.headers.uID as string
@@ -179,12 +89,228 @@ export class CustomCharacterController {
     return await this.userRepo.save(creator)
   }
 
-  @Put('/battle/:charID')
+  /**
+   * Get route for characters
+   * Returns a collection of all custom characters
+   * "where" can be passed in as a query parameter to filter by player or id
+   * @param req
+   */
+  @Get('/characters/')
+  async getCharacters (@Req() req: Request): Promise<any> {
+    const where: string = req.query.where as string ?? '%'
+    const queryWhere: string = `%${where}`
+    const sortOptions: any = this.getSortOptions(req)
+    return await this.customCharacterRepo
+      .createQueryBuilder('customChar')
+      .leftJoinAndSelect('customChar.creator', 'creator')
+      .where('creator.userName LIKE :queryWhere', { queryWhere })
+      .orWhere('creator.uID LIKE :queryWhere', { queryWhere })
+      .addOrderBy(sortOptions.field, sortOptions.order)
+      .getMany()
+  }
+
+  /**
+   * Get route for all non-playable characters
+   * Returns a collection of all non-playable characters
+   * "size" can be provided as query -- defaults to md
+   * size can be sm, md, lg, xl
+   * @param req
+   * @param res
+   */
+  @Get('/characters/npc/')
+  async getNPC (@Req() req: Request, @Res() res: Response): Promise<any> {
+    let size: string = req.query.size as string ?? 'md'
+    if (!ALLOWED_SIZE.includes(size)) size = 'md'
+    const characters = await this.characterRepo.find()
+    // TODO Find a way to have a query builder speed up this process.
+    //    As is, this is doubling the result time
+    for (const c: any of characters) {
+      c.image = `${c.imagePrefix}${size}/${c.imageSuffix}`
+      c.imagePrefix = undefined
+      c.imageSuffix = undefined
+    }
+    return res.json(characters)
+  }
+
+  /**
+   * Get route for the current user's characters
+   * Returns all characters, displaying active characters first and inactive characters after
+   * @param req
+   * @param res
+   */
+  @Get('/characters/user/')
+  async getUserCharacters (@Req() req: Request, @Res() res: Response): Promise<any> {
+    const { uID } = req.headers
+    if (!uID) return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.UNAUTHORIZED_STATUS)
+    return await this.customCharacterRepo
+      .createQueryBuilder('customChar')
+      .leftJoinAndSelect('customChar.creator', 'creator')
+      .where('creator.uID LIKE :uID', { uID })
+      .addOrderBy('isActive', CustomCharacterController.DESCENDING)
+      .getMany()
+  }
+
+  /**
+   * Get route for characters.
+   * Returns a specific character by ID
+   * @param id
+   * @param res
+   */
+  @Get('/characters/:id')
+  async getOneCharacter (@Param('id') id: number, @Res() res: Response): Promise<any> {
+    if (!id) {
+      return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.BAD_REQUEST, MISSING_ID_ERR)
+    }
+    const returnChar: CustomCharacter = await this.customCharacterRepo.findOneBy({ id })
+
+    if (!returnChar) {
+      return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.ITEM_NOT_FOUND,
+        `Character of ID ${id} is not found`)
+    }
+    return res.json(returnChar)
+  }
+
+  /**
+   * GET route for characters
+   * Returns NPC characters, with one character being provided for each stat
+   * @param req
+   * @param res
+   */
+  @Get('/character/newroll/')
+  async getStatCharacters (@Req() req: Request, @Res() res: Response): Promise<any> {
+    const characterCount = Object.values(ALLOWED_STATS).length
+    const characters = await this.characterRepo.createQueryBuilder('character')
+      .addOrderBy('random()')
+      .limit(characterCount)
+      .getMany()
+    if (characters?.length === characterCount) {
+      return res.json(characters)
+    }
+    return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.INTERNAL_SERVER_ERROR, INTERNAL_CHAR_ERR)
+  }
+
+  /**
+   *
+   * @param req
+   * @param res
+   */
+  @Put('/character/modify/:id')
+  async modifyCharacter (@Req() req: Request, @Res() res: Response): Promise<any> {
+    const { uID } = req.headers
+    if (!uID) return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.UNAUTHORIZED_STATUS)
+    const id = parseInt(req.params.id) || -1
+    if (!id || id < 0) {
+      return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.BAD_REQUEST, MISSING_ID_ERR)
+    }
+    const customCharacter: CustomCharacter = await this.customCharacterRepo.findOneBy({ id })
+    if (!customCharacter) {
+      return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.ITEM_NOT_FOUND, CHAR_NOT_FOUND)
+    }
+    const name = req.body.name as string || customCharacter.name
+    const url = req.body.url as string || customCharacter.url
+    customCharacter.name = name
+    customCharacter.url = url
+    return await this.customCharacterRepo.save(customCharacter)
+  }
+
+  /**
+   * POST route for characters
+   * Will take in a nrw character via the request body
+   * If errors exist, they will be returned
+   * If validation passes, the character will be returned, citing the current user as the creator
+   * Wins will be set to 0 and active status will be set to yes
+   * @param req
+   * @param res
+   */
+  @Post('/character/new')
+  async addCharacter (@Req() req: Request, @Res() res: Response): Promise<any> {
+    const uID: string = req.headers.uID as string
+    const creator: DiscordUser = await this.userRepo.findOneBy({ uID })
+    if (!creator) return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.UNAUTHORIZED_STATUS, LOGIN_FAILED)
+    const { strength, weight, height, intelligence, power, combat, durability, speed, name, url } = req.body
+    const wins: number = 0
+    const isActive: boolean = true
+    const newCharacter = Object.assign(new CustomCharacter(), {
+      strength, weight, height, name, intelligence, power, combat, durability, speed, url, wins, creator, isActive
+    })
+    const violations: ValidationError[] = await validate(newCharacter)
+    return violations.length
+      ? this.exitWithViolations(res, violations)
+      : await this.customCharacterRepo.save(newCharacter)
+  }
+
+  /**
+   * Reroll character's stat route
+   * stats:
+   * 1 = height
+   * 2 = weight
+   * 3 = intelligence
+   * 4 = strength
+   * 5 = speed
+   * 6 = durability
+   * 7 = combat
+   * 8 = power
+   * PUT route for character rerolls
+   * This route should in theory only be called after battles, but no such state check is in place at this time
+   * This route takes in an ID and a stat from the URL
+   * If id/stats are out of range or not provided, such errors will be displayed
+   * If all is successful, character stats will be updated and the character eill be returned in the body as c1, with
+   * the donor character returned as c2
+   * @param req
+   * @param res
+   */
+  @Put('/character/reroll/')
+  async rerollOneStat (@Req() req: Request, @Res() res: Response): Promise<any> {
+    const id: number = parseInt(req.query.charID as string)
+    if (!id) return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.BAD_REQUEST, MISSING_ID_ERR)
+    const stat: number = parseInt(req.query.stat as string)
+    if (!stat) return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.BAD_REQUEST, MISSING_STAT_ERR)
+    const statValid: boolean = Object.values(ALLOWED_STATS).map(x => x.index).includes(stat)
+    if (!statValid) return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.BAD_REQUEST, STAT_OUT_OF_RANGE_ERR)
+    const statName: string = Object.keys(ALLOWED_STATS)[stat - 1]
+    const oldChar: CustomCharacter = await this.customCharacterRepo.findOneBy({ id })
+    if (!oldChar) {
+      return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.ITEM_NOT_FOUND,
+      `Character of ID ${id} is not found`)
+    }
+    if (oldChar.creator.uID !== req.headers.uID) {
+      return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.UNAUTHORIZED_STATUS, UNAUTHORIZED_ERR)
+    }
+    if (!oldChar.isActive) {
+      return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.BAD_REQUEST, CHAR_INACTIVE)
+    }
+    const statCharacter: Character = await this.characterRepo.createQueryBuilder()
+      .addOrderBy('random()')
+      .getOne()
+    if (!statCharacter) {
+      return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.INTERNAL_SERVER_ERROR,
+        INTERNAL_CHAR_ERR)
+    }
+    oldChar[statName] = statCharacter[statName]
+    await this.customCharacterRepo.save(oldChar)
+    return res.json({ c1: oldChar, c2: statCharacter })
+  }
+
+  /**
+   * PUT route for a character to battle in
+   * charID will be taken as a param in the URL
+   * If no errors exist, the fight's victory status will be returned as a boolean
+   * If the player loses, their character's status will be updated
+   * Their hi score will be updated if necessary
+   * The player and opponent will be returned as c1 and c2, respectively
+   * @param req
+   * @param res
+   */
+  @Put('/character/battle/:charID')
   async battleWithCharacter (@Req() req: Request, @Res() res: Response): Promise<any> {
     const uID: string = req.headers.uID as string
     const id: number = parseInt(req.params.charID) || -1
     if (!uID || id < 0) {
       return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.BAD_REQUEST)
+    }
+    const user: DiscordUser = await this.userRepo.findOneBy({ uID })
+    if (!user) {
+      return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.UNAUTHORIZED_STATUS, LOGIN_FAILED)
     }
     const customChar: CustomCharacter = await this.customCharacterRepo.findOneBy({ id })
     if (!customChar) {
@@ -193,19 +319,38 @@ export class CustomCharacterController {
     if (customChar.creator.uID !== uID) {
       return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.UNAUTHORIZED_STATUS, UNAUTHORIZED_ERR)
     }
-    const opponent: Character = this.characterRepo.createQueryBuilder().addOrderBy('random()').getOne()
+    if (!customChar.isActive) {
+      return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.BAD_REQUEST, CHAR_INACTIVE)
+    }
+    const opponent: Character = await this.characterRepo.createQueryBuilder().addOrderBy('random()').getOne()
     if (!opponent) {
       return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.INTERNAL_SERVER_ERROR)
     }
-    const customCharValuePoints: number = this.calculateValue(customChar)
-    const opponentValuePoints: number = this.calculateValue(opponent)
+    const customCharValuePoints: number = this.calculateValuePoints(customChar)
+    const opponentValuePoints: number = this.calculateValuePoints(opponent)
+    if (opponentValuePoints > customCharValuePoints) {
+      customChar.isActive = false
+      await this.customCharacterRepo.save(customChar)
+      if (customChar.wins > user.hiScore) {
+        user.hiScore = customChar.wins
+        await this.userRepo.save(user)
+      }
+    }
+    return res.json({ win: customCharValuePoints >= opponentValuePoints, c1: customChar, c2: opponent })
   }
 
+  /**
+   * Administrative route, to be run only by the ADMIN_USER, as determined by instance environment variables
+   * Takes in a URL encoded import url to a character JSON file. It will clear the current character table and import
+   * the provided characters. If a character is unprocessable for any reason, they will be displayed in an array with
+   * The validation errors. Other characters will be added as normal
+   * @param req
+   * @param res
+   */
   @Put('/characters/import/:importURL')
   async refreshCharacterDatabase (@Req() req: Request, @Res() res: Response): Promise<any> {
     const uID: string = req.headers.uID as string
     const adminUID = process.env.ADMIN_USER_ID
-    console.log(req.params.importURL)
 
     if (uID !== adminUID) {
       return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.UNAUTHORIZED_STATUS)
@@ -235,7 +380,6 @@ export class CustomCharacterController {
           unprocessableCharacters: badCharacters
         })
       } else {
-        console.log(badCharacters[0].violations)
         return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.UNPROCESSABLE_ENTITY, CHAR_ENTITY_ERR)
       }
     } catch {
@@ -247,14 +391,15 @@ export class CustomCharacterController {
      * This function takes in a request header and uses it to discover more about the user that sent the request.
      * It does this by:
      *  1) Ensuring there is an authorization header in the request
-     *  2) Making a request to the Discord API using the very same authorization header.
-     * If the request succeeds, the user's ID and username are returned, delimited by :
+     *  2) Making a request to the Discord API using this authorization header.
+     * If the request succeeds, the user's ID, username, displayName, and avatar are returned, delimited by :::
      * If the request fails, null is returned
      * @param head Request header
      * @return {string | null} Discord ID and username or null
      */
   public static async getUser (@Head() head: any): Promise<string | null> {
     const authToken: string = head.authorization?.toString()
+    const delim = CustomCharacterController.DELIM
     if (authToken) {
       const fetchHeaders: Headers = new Headers()
       fetchHeaders.append(AUTHORIZATION_HEADER, authToken)
@@ -267,7 +412,7 @@ export class CustomCharacterController {
           //  on frontend
           : 'https://discord.com/assets/1f0bfc0865d324c2587920a7d80c609b.png'
         const displayName = discordUser.displayName ?? ''
-        return `${discordUser.id}${CustomCharacterController.DELIM}${discordUser.username}${CustomCharacterController.DELIM}${displayName}${CustomCharacterController.DELIM}${avatarLink}`
+        return `${discordUser.id}${delim}${discordUser.username}${delim}${displayName}${delim}${avatarLink}`
       }
     }
     return null
@@ -327,11 +472,14 @@ export class CustomCharacterController {
     return sortOptions
   }
 
+  /**
+   * This function takes in a Character or CustomCharacter and returns their value points
+   * @param character
+   */
   calculateValuePoints (character: CustomCharacter | Character): number {
     let returnVP: number = 0
-    //TODO find a cute way to automate this process later
-    returnVP += Math.min(character.height, ALLOWED_STATS.height.maxValue)
-    returnVP += Math.min(character.weight, ALLOWED_STATS.weight.maxValue)
+    returnVP += Math.min(character.height, ALLOWED_STATS.height.maxValue) * ALLOWED_STATS.height.multiplier
+    returnVP += Math.min(character.weight, ALLOWED_STATS.weight.maxValue) * ALLOWED_STATS.weight.multiplier
     returnVP += character.combat * ALLOWED_STATS.combat.multiplier
     returnVP += character.strength * ALLOWED_STATS.strength.multiplier
     returnVP += character.speed * ALLOWED_STATS.speed.multiplier
