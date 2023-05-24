@@ -20,7 +20,7 @@ const DEV_DB = {
   migrations: [],
   subscribers: []
 }
-let dbOptions: any = {}
+let dbOptions: any
 
 if (process.env?.NODE_ENV?.toUpperCase() === 'PRODUCTION') {
   dbOptions = {

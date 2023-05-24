@@ -327,7 +327,7 @@ export class CustomCharacterController {
     if (!customChar.isActive) {
       return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.BAD_REQUEST, CHAR_INACTIVE)
     }
-    const opponent: Character = await this.characterRepo.createQueryBuilder().addOrderBy('rand()').getOne()
+    const opponent: Character = await this.characterRepo.createQueryBuilder().addOrderBy(RANDOM_FUNCTION).getOne()
     if (!opponent) {
       return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.INTERNAL_SERVER_ERROR)
     }
