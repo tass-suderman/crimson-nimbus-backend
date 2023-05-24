@@ -14,35 +14,35 @@ const HEIGHT_BOUNDARY_ERROR: string = 'Height must be greater than $constraint1'
 const WEIGHT_MIN: number = 0
 const WEIGHT_BOUNDARY_ERROR: string = 'Weight must be greater than $constraint1'
 
-const INT_MIN = 0
-const INT_MAX = 100
-const INT_ERR = 'Intelligence must be between $constraint1 and $constraint2.'
+const INT_MIN: number = 0
+const INT_MAX: number = 100
+const INT_ERR: string = 'Intelligence must be between $constraint1 and $constraint2.'
 
-const STR_MIN = 0
-const STR_MAX = 100
-const STR_ERR = 'Strength must be between $constraint1 and $constraint2.'
+const STR_MIN: number = 0
+const STR_MAX: number = 100
+const STR_ERR: string = 'Strength must be between $constraint1 and $constraint2.'
 
-const SPD_MIN = 0
-const SPD_MAX = 100
-const SPD_ERR = 'Speed must be between $constraint1 and $constraint2.'
+const SPD_MIN: number = 0
+const SPD_MAX: number = 100
+const SPD_ERR: string = 'Speed must be between $constraint1 and $constraint2.'
 
-const DUR_MIN = 0
-const DUR_MAX = 100
-const DUR_ERR = 'Durability must be between $constraint1 and $constraint2.'
+const DUR_MIN: number = 0
+const DUR_MAX: number = 100
+const DUR_ERR: string = 'Durability must be between $constraint1 and $constraint2.'
 
-const POW_MIN = 0
-const POW_MAX = 100
-const POW_ERR = 'Power must be between $constraint1 and $constraint2.'
+const POW_MIN: number = 0
+const POW_MAX: number = 100
+const POW_ERR: string = 'Power must be between $constraint1 and $constraint2.'
 
-const COM_MIN = 0
-const COM_MAX = 100
-const COM_ERR = 'Combat must be between $constraint1 and $constraint2.'
+const COM_MIN: number = 0
+const COM_MAX: number = 100
+const COM_ERR: string = 'Combat must be between $constraint1 and $constraint2.'
 
-const IMAGE_PREFIX_MIN = 1
-const IMAGE_PREFIX_ERR = 'Image prefix must not be shorter than $constraint1 characters.'
+const IMAGE_PREFIX_MIN: number = 1
+const IMAGE_PREFIX_ERR: string = 'Image prefix must not be shorter than $constraint1 characters.'
 
-const IMAGE_SUFFIX_MIN = 1
-const IMAGE_SUFFIX_ERR = 'Image suffix must not be shorter than $constraint1 characters.'
+const IMAGE_SUFFIX_MIN: number = 1
+const IMAGE_SUFFIX_ERR: string = 'Image suffix must not be shorter than $constraint1 characters.'
 
 @Entity()
 export class Character {

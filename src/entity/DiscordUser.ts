@@ -13,7 +13,7 @@ const USER_NAME_LENGTH_ERR: string = 'Username must be from $constraint1 to $con
 const AVATAR_MAX: number = 64
 const AVATAR_LENGTH_ERR: string = 'Avatar cannot exceed $constraint1 characters'
 const HIGH_SCORE_MIN: number = 0
-const HIGH_SCORE_MIN_ERR = 'High score cannot be smaller than 0'
+const HIGH_SCORE_MIN_ERR: string = 'High score cannot be smaller than 0'
 
 @Entity()
 export class DiscordUser {

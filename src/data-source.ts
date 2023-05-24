@@ -4,6 +4,10 @@ import { Character } from './entity/Character'
 import { DiscordUser } from './entity/DiscordUser'
 import { CustomCharacter } from './entity/CustomCharacter'
 
+import { config } from 'dotenv'
+
+config()
+
 const entities = [Character, DiscordUser, CustomCharacter]
 const DEFAULT_NAME = 'crimson-nimbus.db'
 
@@ -35,3 +39,4 @@ if (process.env?.NODE_ENV?.toUpperCase() === 'PRODUCTION') {
   dbOptions = DEV_DB
 }
 export const AppDataSource = new DataSource(dbOptions)
+export const RANDOM_FUNCTION: string = dbOptions.type === 'better-sqlite3' ? 'random()' : 'rand()'

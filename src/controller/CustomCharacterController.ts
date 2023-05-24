@@ -1,17 +1,18 @@
 import { Controller, Get, Head, Param, Post, Put, Req, Res } from 'routing-controllers'
-import { AppDataSource } from '../data-source'
+import { AppDataSource, RANDOM_FUNCTION } from '../data-source'
 import { Character } from '../entity/Character'
 import { validate, ValidationError } from 'class-validator'
 import { Request, Response } from 'express'
 import { CustomCharacter } from '../entity/CustomCharacter'
 import { DiscordUser } from '../entity/DiscordUser'
 import fetch, { Headers } from 'node-fetch'
-
+import { config } from 'dotenv'
+import { Repository } from 'typeorm'
+config()
 const DISCORD_URL: string = 'https://discord.com/api/v9/users/@me'
 const AUTHORIZATION_HEADER: string = 'Authorization'
 
-// Maybe this should be a map or somehthing. its giving me weird vibes
-const ALLOWED_STATS = {
+const ALLOWED_STATS: any = {
   height: { index: 1, multiplier: 0.2, maxValue: 600 },
   weight: { index: 2, multiplier: 0.3, maxValue: 1000 },
   intelligence: { index: 3, multiplier: 0.8 },
@@ -25,16 +26,17 @@ const ALLOWED_STATS = {
 const ALLOWED_SIZE: string[] = ['sm', 'md', 'lg', 'xl']
 
 const MISSING_ID_ERR: string = 'ID must be provided and numeric'
-const MISSING_STAT_ERR: string = `Stat index must be provided and be a number between 1 and ${Object.values(ALLOWED_STATS).length}`
+const MISSING_STAT_ERR: string =
+  `Stat index must be provided and be a number between 1 and ${Object.values(ALLOWED_STATS).length}`
 const INTERNAL_CHAR_ERR: string = 'Internal character database is unavailable.'
 const STAT_OUT_OF_RANGE_ERR = `Stat index must be between 0 and ${Object.values(ALLOWED_STATS).length}`
 const UNAUTHORIZED_ERR: string = 'Only the character\'s creator can make changes'
 const CHARACTER_JSON_ERR: string = 'URL to the character source must be provided'
 const CHAR_ENTITY_ERR: string = 'Problem exists with provided hero file.'
 const CHAR_NOT_FOUND: string = 'Character of provided ID not found.'
-// TODO If you get this on thw frontend, you are not running the /login route when you should be
 const LOGIN_FAILED: string = 'Login failed. Please log out and login again.'
 const CHAR_INACTIVE: string = 'This character is not on duty.'
+const DEFAULT_PFP: string = 'https://discord.com/assets/1f0bfc0865d324c2587920a7d80c609b.png'
 
 @Controller()
 export class CustomCharacterController {
@@ -54,14 +56,12 @@ export class CustomCharacterController {
   public static readonly DESCENDING: string = 'DESC'
   public static readonly ASCENDING: string = 'ASC'
 
-  // UUID and Username delimited by :, because those are not allowed in user ids or name
-  // source: https://discord.com/developers/docs/resources/user
   public static readonly DELIM: string = ':::'
-  public readonly SORT_FIELDS = ['id', 'creator', 'creator.userName']
+  public readonly SORT_FIELDS: string[] = ['id', 'creator', 'creator.userName']
 
-  private readonly customCharacterRepo = AppDataSource.getRepository(CustomCharacter)
-  private readonly userRepo = AppDataSource.getRepository(DiscordUser)
-  private readonly characterRepo = AppDataSource.getRepository(Character)
+  private readonly customCharacterRepo: Repository<CustomCharacter> = AppDataSource.getRepository(CustomCharacter)
+  private readonly userRepo: Repository<DiscordUser> = AppDataSource.getRepository(DiscordUser)
+  private readonly characterRepo: Repository<Character> = AppDataSource.getRepository(Character)
 
   /**
    * Login route.
@@ -124,7 +124,7 @@ export class CustomCharacterController {
     const characters = await this.characterRepo.find()
     // TODO Find a way to have a query builder speed up this process.
     //    As is, this is doubling the result time
-    for (const c: any of characters) {
+    for (const c of characters as any) {
       c.image = `${c.imagePrefix}${size}/${c.imageSuffix}`
       c.imagePrefix = undefined
       c.imageSuffix = undefined
@@ -146,7 +146,7 @@ export class CustomCharacterController {
       .createQueryBuilder('customChar')
       .leftJoinAndSelect('customChar.creator', 'creator')
       .where('creator.uID LIKE :uID', { uID })
-      .addOrderBy('isActive', CustomCharacterController.DESCENDING)
+      .addOrderBy('isActive', CustomCharacterController.DESCENDING as 'DESC')
       .getMany()
   }
 
@@ -178,9 +178,9 @@ export class CustomCharacterController {
    */
   @Get('/character/newroll/')
   async getStatCharacters (@Req() req: Request, @Res() res: Response): Promise<any> {
-    const characterCount = Object.values(ALLOWED_STATS).length
-    const characters = await this.characterRepo.createQueryBuilder('character')
-      .addOrderBy('random()')
+    const characterCount: number = Object.values(ALLOWED_STATS).length
+    const characters: Character[] = await this.characterRepo.createQueryBuilder('character')
+      .addOrderBy(RANDOM_FUNCTION)
       .limit(characterCount)
       .getMany()
     if (characters?.length === characterCount) {
@@ -190,7 +190,8 @@ export class CustomCharacterController {
   }
 
   /**
-   *
+   * PUT route for characters
+   * Allows you to change a character's image or name
    * @param req
    * @param res
    */
@@ -206,8 +207,8 @@ export class CustomCharacterController {
     if (!customCharacter) {
       return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.ITEM_NOT_FOUND, CHAR_NOT_FOUND)
     }
-    const name = req.body.name as string || customCharacter.name
-    const url = req.body.url as string || customCharacter.url
+    const name: string = req.body.name as string || customCharacter.name
+    const url: string = req.body.url as string || customCharacter.url
     customCharacter.name = name
     customCharacter.url = url
     return await this.customCharacterRepo.save(customCharacter)
@@ -226,11 +227,13 @@ export class CustomCharacterController {
   async addCharacter (@Req() req: Request, @Res() res: Response): Promise<any> {
     const uID: string = req.headers.uID as string
     const creator: DiscordUser = await this.userRepo.findOneBy({ uID })
-    if (!creator) return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.UNAUTHORIZED_STATUS, LOGIN_FAILED)
+    if (!creator) {
+      return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.UNAUTHORIZED_STATUS, LOGIN_FAILED)
+    }
     const { strength, weight, height, intelligence, power, combat, durability, speed, name, url } = req.body
     const wins: number = 0
     const isActive: boolean = true
-    const newCharacter = Object.assign(new CustomCharacter(), {
+    const newCharacter: CustomCharacter = Object.assign(new CustomCharacter(), {
       strength, weight, height, name, intelligence, power, combat, durability, speed, url, wins, creator, isActive
     })
     const violations: ValidationError[] = await validate(newCharacter)
@@ -265,8 +268,10 @@ export class CustomCharacterController {
     if (!id) return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.BAD_REQUEST, MISSING_ID_ERR)
     const stat: number = parseInt(req.query.stat as string)
     if (!stat) return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.BAD_REQUEST, MISSING_STAT_ERR)
-    const statValid: boolean = Object.values(ALLOWED_STATS).map(x => x.index).includes(stat)
-    if (!statValid) return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.BAD_REQUEST, STAT_OUT_OF_RANGE_ERR)
+    const statValid: boolean = Object.values(ALLOWED_STATS).map((x: any) => x.index).includes(stat)
+    if (!statValid) {
+      return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.BAD_REQUEST, STAT_OUT_OF_RANGE_ERR)
+    }
     const statName: string = Object.keys(ALLOWED_STATS)[stat - 1]
     const oldChar: CustomCharacter = await this.customCharacterRepo.findOneBy({ id })
     if (!oldChar) {
@@ -280,7 +285,7 @@ export class CustomCharacterController {
       return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.BAD_REQUEST, CHAR_INACTIVE)
     }
     const statCharacter: Character = await this.characterRepo.createQueryBuilder()
-      .addOrderBy('random()')
+      .addOrderBy(RANDOM_FUNCTION)
       .getOne()
     if (!statCharacter) {
       return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.INTERNAL_SERVER_ERROR,
@@ -322,12 +327,12 @@ export class CustomCharacterController {
     if (!customChar.isActive) {
       return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.BAD_REQUEST, CHAR_INACTIVE)
     }
-    const opponent: Character = await this.characterRepo.createQueryBuilder().addOrderBy('random()').getOne()
+    const opponent: Character = await this.characterRepo.createQueryBuilder().addOrderBy('rand()').getOne()
     if (!opponent) {
       return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.INTERNAL_SERVER_ERROR)
     }
-    const customCharValuePoints: number = this.calculateValuePoints(customChar)
-    const opponentValuePoints: number = this.calculateValuePoints(opponent)
+    const customCharValuePoints: number = this.calculateValuePoints(customChar, 0)
+    const opponentValuePoints: number = this.calculateValuePoints(opponent, customChar.wins)
     if (opponentValuePoints > customCharValuePoints) {
       customChar.isActive = false
       await this.customCharacterRepo.save(customChar)
@@ -339,7 +344,13 @@ export class CustomCharacterController {
       customChar.wins++
       await this.customCharacterRepo.save(customChar)
     }
-    return res.json({ win: customCharValuePoints >= opponentValuePoints, c1: customChar, c2: opponent })
+    return res.json({
+      win: customCharValuePoints >= opponentValuePoints,
+      c1: customChar,
+      c1VP: customCharValuePoints,
+      c2: opponent,
+      c2VP: opponentValuePoints
+    })
   }
 
   /**
@@ -353,16 +364,18 @@ export class CustomCharacterController {
   @Put('/characters/import/:importURL')
   async refreshCharacterDatabase (@Req() req: Request, @Res() res: Response): Promise<any> {
     const uID: string = req.headers.uID as string
-    const adminUID = process.env.ADMIN_USER_ID
+    const adminUID: string = process.env.ADMIN_USER_ID
 
     if (uID !== adminUID) {
       return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.UNAUTHORIZED_STATUS)
     }
-    if (!req.params.importURL) return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.BAD_REQUEST, CHARACTER_JSON_ERR)
+    if (!req.params.importURL) {
+      return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.BAD_REQUEST, CHARACTER_JSON_ERR)
+    }
     try {
       const characterArr = await import(req.params.importURL)
-      const badCharacters = []
-      const goodCharacters = []
+      const badCharacters: any[] = []
+      const goodCharacters: any[] = []
       for (const c of characterArr) {
         const newCharacter = Object.assign(new Character(), c)
         const violations: ValidationError[] = await validate(newCharacter)
@@ -413,7 +426,7 @@ export class CustomCharacterController {
           ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.webp`
           // TODO remove this line and instead return empty string when no avatar if default pfp asset is created
           //  on frontend
-          : 'https://discord.com/assets/1f0bfc0865d324c2587920a7d80c609b.png'
+          : DEFAULT_PFP
         const displayName = discordUser.displayName ?? ''
         return `${discordUser.id}${delim}${discordUser.username}${delim}${displayName}${delim}${avatarLink}`
       }
@@ -469,7 +482,8 @@ export class CustomCharacterController {
       field: ''
     }
     sortOptions.field = this.SORT_FIELDS.includes(req.query.sortby as string) ? req.query.sortby : this.SORT_FIELDS[0]
-    sortOptions.order = CustomCharacterController.DESCENDING_OPTIONS.includes((req.query.sortorder as string)?.toUpperCase())
+    sortOptions.order = CustomCharacterController.DESCENDING_OPTIONS
+      .includes((req.query.sortorder as string)?.toUpperCase())
       ? CustomCharacterController.DESCENDING
       : CustomCharacterController.ASCENDING
     return sortOptions
@@ -478,17 +492,22 @@ export class CustomCharacterController {
   /**
    * This function takes in a Character or CustomCharacter and returns their value points
    * @param character
+   * @param wins
    */
-  calculateValuePoints (character: CustomCharacter | Character): number {
+  calculateValuePoints (character: CustomCharacter | Character, wins: number): number {
     let returnVP: number = 0
-    returnVP += Math.min(character.height, ALLOWED_STATS.height.maxValue) * ALLOWED_STATS.height.multiplier
-    returnVP += Math.min(character.weight, ALLOWED_STATS.weight.maxValue) * ALLOWED_STATS.weight.multiplier
-    returnVP += character.combat * ALLOWED_STATS.combat.multiplier
-    returnVP += character.strength * ALLOWED_STATS.strength.multiplier
-    returnVP += character.speed * ALLOWED_STATS.speed.multiplier
-    returnVP += character.intelligence * ALLOWED_STATS.intelligence.multiplier
-    returnVP += character.power * ALLOWED_STATS.power.multiplier
-    returnVP += character.durability * ALLOWED_STATS.durability.multiplier
+    let modifier: number = 0
+    for (let i: number = wins; i > 0; i++) {
+      modifier += i
+    }
+    returnVP += Math.min(character.height + modifier, ALLOWED_STATS.height.maxValue) * ALLOWED_STATS.height.multiplier
+    returnVP += Math.min(character.weight + modifier, ALLOWED_STATS.weight.maxValue) * ALLOWED_STATS.weight.multiplier
+    returnVP += (character.combat + modifier) * ALLOWED_STATS.combat.multiplier
+    returnVP += (character.strength + modifier) * ALLOWED_STATS.strength.multiplier
+    returnVP += (character.speed + modifier) * ALLOWED_STATS.speed.multiplier
+    returnVP += (character.intelligence + modifier) * ALLOWED_STATS.intelligence.multiplier
+    returnVP += (character.power + modifier) * ALLOWED_STATS.power.multiplier
+    returnVP += (character.durability + modifier) * ALLOWED_STATS.durability.multiplier
     return returnVP
   }
 }

@@ -1,17 +1,3 @@
-// TODO
-//  Add login route for discord users. Our DB has content specific to discord users that will not be returned in a regular query
-//  Test reroll stat paths
-//  Add battle route
-//    Takes in character's ID and user's Auth header
-//    Returns opponent and win/loss status as boolean
-//    Add Win condition
-//      Increase Character's score
-//    Add Losing Condition
-//      If necessary, update player's hi score
-//   After the above are completed and TESTED:
-//      Clean up code, remove extra code
-//      Test deployment on GAE and change datasource to Google-Hosted MySQL server
-
 import * as express from 'express'
 import * as bodyParser from 'body-parser'
 import { AppDataSource } from './data-source'
@@ -23,19 +9,22 @@ import { config } from 'dotenv'
 
 config()
 // Backend server port
-const port: number = parseInt(process.env.port) || 7455
+const port: number = parseInt(process.env.PORT) || 7455
 
 const NOT_LOGGED_IN_ERR: string = 'You must be logged in to a discord session to perform this action'
 const ROUTE_NOT_FOUND_ERR: string = 'Route not found'
-const ROUTE_NOT_FOUND: any = { code: CustomCharacterController.STATUS_CODES.ITEM_NOT_FOUND.code, message: ROUTE_NOT_FOUND_ERR }
+const ROUTE_NOT_FOUND: any = {
+  code: CustomCharacterController.STATUS_CODES.ITEM_NOT_FOUND.code,
+  message: ROUTE_NOT_FOUND_ERR
+}
 
 // CORS options
 const corsOptions = {
   // TODO Allow for GCloud origin here
-  origin: /localhost:\d{4,5}$/i,
+  origin: /(localhost:\d{4,5}|.*appspot.*)$/i,
   credentials: true,
   allowedHeaders: 'Origin,X-Requested-With,Content-Type,Accept,Authorization',
-  methods: 'GET,PUT,POST,DELETE'
+  methods: 'GET,PUT,POST'
 }
 
 /**
@@ -81,22 +70,18 @@ const NOT_FOUND_HANDLER = async (req: Request, res: Response): Promise<any> => {
   }
 }
 
-const controllers: any[] = [CustomCharacterController]
-
 AppDataSource.initialize().then(async () => {
   // app setup
   const app = express()
   app.use(bodyParser.json())
   app.use(cors(corsOptions))
 
-  // first use the account checker
   app.use(ACCOUNT_CHECKER)
 
-  // then the controllers
-  useExpressServer(app, { controllers })
+  useExpressServer(app, { controllers: [CustomCharacterController] })
 
-  // if the controllers do not fulfill your request, you receive a 404 for your efforts
   app.use(NOT_FOUND_HANDLER)
 
   app.listen(port)
+  console.log(`Server is listening on port ${port}`)
 }).catch(error => console.log(error))
