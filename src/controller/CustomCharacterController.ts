@@ -8,8 +8,10 @@ import { DiscordUser } from '../entity/DiscordUser'
 import fetch, { Headers } from 'node-fetch'
 import { config } from 'dotenv'
 import { Repository } from 'typeorm'
+import { Storage } from '@google-cloud/storage'
 config()
 const DISCORD_URL: string = 'https://discord.com/api/v9/users/@me'
+const GOOGLE_URL: string = 'https://storage.googleapis.com'
 const AUTHORIZATION_HEADER: string = 'Authorization'
 
 const ALLOWED_STATS: any = {
@@ -23,7 +25,8 @@ const ALLOWED_STATS: any = {
   power: { index: 8, multiplier: 1.1 }
 }
 
-const ALLOWED_SIZE: string[] = ['sm', 'md', 'lg', 'xl']
+const ALLOWED_SIZE: string[] = ['xs', 'sm', 'md', 'lg']
+const ALLOWED_IMAGE_TYPES: string[] = ['image/png', 'image/jpg', 'image/jpeg']
 
 const MISSING_ID_ERR: string = 'ID must be provided and numeric'
 const MISSING_STAT_ERR: string =
@@ -37,6 +40,7 @@ const CHAR_NOT_FOUND: string = 'Character of provided ID not found.'
 const LOGIN_FAILED: string = 'Login failed. Please log out and login again.'
 const CHAR_INACTIVE: string = 'This character is not on duty.'
 const DEFAULT_PFP: string = 'https://discord.com/assets/1f0bfc0865d324c2587920a7d80c609b.png'
+const INITIAL_BUFFER = 3 // Enemies will be weakened for this many rounds before scaling up
 
 @Controller()
 export class CustomCharacterController {
@@ -97,9 +101,9 @@ export class CustomCharacterController {
    */
   @Get('/characters/')
   async getCharacters (@Req() req: Request): Promise<any> {
-    const where: string = req.query.where as string ?? '%'
+    const where: string = req.query.where as string || '%'
     const queryWhere: string = `%${where}`
-    const limit: number = parseInt(req.query?.limit as string || '10')
+    const limit: number = parseInt(req.query?.limit as string || '100')
     const sortOptions: any = this.getSortOptions(req)
     return await this.customCharacterRepo
       .createQueryBuilder('customChar')
@@ -115,7 +119,7 @@ export class CustomCharacterController {
    * Get route for all non-playable characters
    * Returns a collection of all non-playable characters
    * "size" can be provided as query -- defaults to md
-   * size can be sm, md, lg, xl
+   * size can be xs, sm, md, lg
    * @param req
    * @param res
    */
@@ -233,7 +237,24 @@ export class CustomCharacterController {
     if (!creator) {
       return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.UNAUTHORIZED_STATUS, LOGIN_FAILED)
     }
-    const { strength, weight, height, intelligence, power, combat, durability, speed, name, url } = req.body
+    const { strength, weight, height, intelligence, power, combat, durability, speed, name } = req.body
+    let { url } = req.body
+    if (process.env.BUCKET) {
+      const fileName: string = req.headers.uID as string + new Date().valueOf().toString()
+      const resImage = await fetch(url)
+      const mimetype = resImage.headers.get('content-type')
+      if (ALLOWED_IMAGE_TYPES.includes(mimetype)) {
+        const storage = new Storage()
+        const bucket = storage.bucket(process.env.BUCKET)
+        const imageExtension: string = `.${mimetype.split('/')[1]}`
+        const file = bucket.file(fileName + imageExtension)
+        const writeStream = file.createWriteStream()
+        if (resImage.ok) {
+          resImage.body.pipe(writeStream)
+        }
+        url = `${GOOGLE_URL}/${process.env.BUCKET}/${fileName}${imageExtension}`
+      }
+    }
     const wins: number = 0
     const isActive: boolean = true
     const newCharacter: CustomCharacter = Object.assign(new CustomCharacter(), {
@@ -334,8 +355,8 @@ export class CustomCharacterController {
     if (!opponent) {
       return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.INTERNAL_SERVER_ERROR)
     }
-    const customCharValuePoints: number = this.calculateValuePoints(customChar, 0)
-    const opponentValuePoints: number = this.calculateValuePoints(opponent, customChar.wins)
+    const customCharValuePoints: number = this.calculateValuePoints(customChar, 0, 0)
+    const opponentValuePoints: number = this.calculateValuePoints(opponent, customChar.wins, INITIAL_BUFFER)
     if (opponentValuePoints > customCharValuePoints) {
       customChar.isActive = false
       await this.customCharacterRepo.save(customChar)
@@ -496,11 +517,12 @@ export class CustomCharacterController {
    * This function takes in a Character or CustomCharacter and returns their value points
    * @param character
    * @param wins
+   * @param buffer
    */
-  calculateValuePoints (character: CustomCharacter | Character, wins: number): number {
+  calculateValuePoints (character: CustomCharacter | Character, wins: number, buffer: number): number {
     let returnVP: number = 0
     let modifier: number = 0
-    for (let i: number = wins; i > 0; i++) {
+    for (let i: number = wins; i > -buffer; i--) {
       modifier += i
     }
     returnVP += Math.min(character.height + modifier, ALLOWED_STATS.height.maxValue) * ALLOWED_STATS.height.multiplier

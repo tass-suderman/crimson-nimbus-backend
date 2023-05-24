@@ -6,7 +6,6 @@ import { useExpressServer } from 'routing-controllers'
 import { NextFunction, Request, Response } from 'express'
 import { CustomCharacterController } from './controller/CustomCharacterController'
 import { config } from 'dotenv'
-
 config()
 // Backend server port
 const port: number = parseInt(process.env.PORT) || 7455
