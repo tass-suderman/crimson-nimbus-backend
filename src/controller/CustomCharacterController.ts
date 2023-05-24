@@ -57,7 +57,7 @@ export class CustomCharacterController {
   public static readonly ASCENDING: string = 'ASC'
 
   public static readonly DELIM: string = ':::'
-  public readonly SORT_FIELDS: string[] = ['id', 'creator', 'creator.userName']
+  public readonly SORT_FIELDS: string[] = ['id', 'creator', 'creator.userName', 'wins', 'isActive', 'name']
 
   private readonly customCharacterRepo: Repository<CustomCharacter> = AppDataSource.getRepository(CustomCharacter)
   private readonly userRepo: Repository<DiscordUser> = AppDataSource.getRepository(DiscordUser)
@@ -99,6 +99,7 @@ export class CustomCharacterController {
   async getCharacters (@Req() req: Request): Promise<any> {
     const where: string = req.query.where as string ?? '%'
     const queryWhere: string = `%${where}`
+    const limit: number = parseInt(req.query?.limit as string || '10')
     const sortOptions: any = this.getSortOptions(req)
     return await this.customCharacterRepo
       .createQueryBuilder('customChar')
@@ -106,6 +107,7 @@ export class CustomCharacterController {
       .where('creator.userName LIKE :queryWhere', { queryWhere })
       .orWhere('creator.uID LIKE :queryWhere', { queryWhere })
       .addOrderBy(sortOptions.field, sortOptions.order)
+      .limit(limit)
       .getMany()
   }
 
@@ -121,9 +123,7 @@ export class CustomCharacterController {
   async getNPC (@Req() req: Request, @Res() res: Response): Promise<any> {
     let size: string = req.query.size as string ?? 'md'
     if (!ALLOWED_SIZE.includes(size)) size = 'md'
-    const characters = await this.characterRepo.find()
-    // TODO Find a way to have a query builder speed up this process.
-    //    As is, this is doubling the result time
+    const characters: Character[] = await this.characterRepo.find()
     for (const c of characters as any) {
       c.image = `${c.imagePrefix}${size}/${c.imageSuffix}`
       c.imagePrefix = undefined
@@ -141,12 +141,15 @@ export class CustomCharacterController {
   @Get('/characters/user/')
   async getUserCharacters (@Req() req: Request, @Res() res: Response): Promise<any> {
     const { uID } = req.headers
+    const { sort } = req.query
+    const DEFAULT_SORT = 'isActive'
     if (!uID) return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.UNAUTHORIZED_STATUS)
     return await this.customCharacterRepo
       .createQueryBuilder('customChar')
       .leftJoinAndSelect('customChar.creator', 'creator')
       .where('creator.uID LIKE :uID', { uID })
-      .addOrderBy('isActive', CustomCharacterController.DESCENDING as 'DESC')
+      .addOrderBy(this.SORT_FIELDS.includes(sort as string) ? sort as string : DEFAULT_SORT,
+        CustomCharacterController.DESCENDING as 'DESC')
       .getMany()
   }
 
