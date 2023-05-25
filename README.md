@@ -14,8 +14,14 @@ This app can run locally or from **Google App Engine.**
 To see the frontend server, please follow Gabriel Beltran's repository: [Cloud Guardian Frontend Server](https://github.com/otakuweebster/crimson-nimbus-frontend)
 
 
+# Contents
+[Description](#description)
+[Gameplay](#gameplay)
+[Google Cloud Elements](#google-cloud-elements)
+[Routes](#routes)
 
-## Description
+
+# Description
 The Legendary Cloud Guardian is a game inspired by a recent Tik Tok trend, wherein people use a filter shows a random character from a pool and they use the characters shown to create a narrative.
 Some examples of this trend include:
 - Building a team from the characters that appear
@@ -26,7 +32,7 @@ And, as this game depicts:
 ![Login Page](/images/login-page.png)
 This game uses Discord OAuth as a login scheme, so a Discord account is required to log in.
 
-## Gameplay
+# Gameplay
 Gameplay is split into a few different parts:
 1) Character Creation
 2) Character Battles
@@ -77,6 +83,7 @@ Characters can fight until they are killed, at which point they will no longer b
 To use a character in a fight, click their image on the left side and confirm that they appear on the right side. Click **LET 'ER RIP!** to begin the fight.
 
 ---------------------
+
 
 # Google Cloud Elements
 While it is completely usable offline, The Legendary Cloud Guardian is created with Google Cloud Deployment in mind. To take advantage of these features, the following considerations are to be made:
@@ -150,7 +157,6 @@ In the **Select a role** dropdown box, select **Storage Legacy Object Reader**, 
 ##### Environment Variables
 To enable buckets on the server, add the following environment variables to your backend server:
 ```
-NODE_ENV=production
 BUCKET=(the name of the bucket you created)
 ```
 
@@ -162,3 +168,252 @@ gcloud auth application-default login
 Follow the on-screen instructions for the Google sign-in process.
 
 ## Google App Engine
+
+This server can be deployed to Google App Engine.
+
+To do so, search for and select App Engine from the Google Console and click **Create Application**.
+
+Leave region settings as their default and select **Compute Engine Default Service Account** or any other service account you would like to deploy with. Click next and wait for the Application to be created.
+
+Set the language to Node.js and leave other settings as default. 
+
+Run the Cloud SDK from your local terminal (If you haven't already downloaded it, download and install it) and run the following command:
+```
+gcloud init
+```
+
+Follow any steps or logins that Google guides you through.
+
+Using the terminal, navigate to the directory holding the server and run the following command:
+```
+gcloud app deploy
+```
+Take note of the **target url** and **target service account**.
+If necessary, create a file titled "app.yaml" in the server directory. Fill it with the following information:
+```yaml
+runtime: nodejs18
+
+automatic_scaling:
+	max_instances: 1
+
+env_variables:
+	AMCLOUD: "gcloud"
+	CLIENTID: (the target service account provided earlier)
+	APPURL: (the target url provided earlier)
+	(add any environment variables you created earlier using this same format)
+```
+
+Save this file, and then launch a new terminal. Navigate it to the server directory and run the following command:
+```
+tsc
+```
+
+When this command is finished executing. return to your first terminal and enter Y to continue.
+
+# Routes
+
+All routes require a header of
+```
+Authorization: Bearer (Discord Auth Token with Identity scope)
+```
+
+## POST /login
+
+Requires no body or other parameters.
+
+This route uses the provided Authorization header to query Discord's API to get the current user's information added to the database.
+
+Can be used to:
+- Add new users to the database
+- Update a user's information (such as if they change their profile picture)
+- Fetch other information about the user, such as their high score
+
+Returns: DiscordUser object of the current User
+
+
+## GET /characters/
+
+Optional query parameters:
+``` 
+where: Values to search with (can be used to filter results by passing in a user's uID or user name)
+
+limit: Maximum number of characters to return (default is 100)
+
+sortby: Field to sort by (can be id, creator, creator.userName, wins, isActive, or name)
+
+sortorder: Order to sort by (ascending by default; can be set to descending by sending DESC, DESCENDING, or D)
+```
+Used to fetch an array of user-created characters from the database.
+
+Returns: CustomCharacter array matching the requested parameters
+
+
+## GET /characters/npc/
+
+Optional query parameters:
+```
+size: size of image links to return (defaults to md; allowed sizes are xs, sm, md, lg)
+```
+
+This route returns all NPC characters. To save work on the frontend machine, it concatenates all images to the requested size.
+
+Returns: Character Array
+
+
+## GET /characters/user/
+
+Optional query parameters:
+```
+sort: field to sort by (defaults to isActive)
+```
+
+This route returns all of a user's characters, in descending order of the sort field.
+
+This route is most often used to return a list of characters that a user may use to fight, so it returns active characters before inactive characters as its default state
+
+Returns: CustomCharacter Array created by requester
+
+
+## GET /characters/:id
+
+Returns the character matching the requested ID
+Returns 404 if character is not found
+
+Returns: CustomCharacter
+
+
+## GET /character/newroll/
+
+Returns a fresh set of characters to be used in character creation and stat drafting
+
+Returns: Character Array of size 8
+
+
+## PUT /character/modify/:id
+
+Route used to modify a character's image or name
+
+This route can only be used if the requester is the creator of the character of specified ID
+
+If no character matches the specified ID, 404 is returned.
+
+Required arguments:
+```
+Body with { name: characterName, url: imageURL }
+```
+
+Returns: CustomCharacter with changes made
+
+
+## POST /character/new
+
+This route is used to add new characters to the database
+
+Required arguments:
+```
+Body with:
+{
+name: characterName 
+url: imageURL
+height: number (representing height in cm)
+weight: number (representing weight in kg)
+speed: number (0-100)
+strength: number (0-100)
+power: number (0-100)
+combat: number (0-100)
+intelligence: number (0-100)
+durability: number (0-100)
+}
+```
+
+If Cloud Storage Buckets are configured, this route will download the image file from the provided URL and save it to the Google Storage Bucket. The character's URL will then be changed to the bucket image URL.
+If the mimetype of the provided image is not one of image/jpg, image/jpeg, or image/png, this action is skipped and the image url is saved as is.
+
+Character is saved, with wins set to 0 and isActive set to true.
+
+Returns: CustomCharacter
+
+
+## PUT /character/reroll
+
+Required query parameters:
+```
+charID: ID of the character to reroll
+stat: stat to reroll (see options below)
+```
+
+Stat options:
+```
+1 = height
+2 = weight
+3 = intelligence
+4 = strength
+5 = speed
+6 = durability
+7 = combat
+8 = power
+```
+
+This route can only be executed on characters which the requester has created.
+
+The specified character has the specified stat value replaced with a random character.
+
+The random character is returned, as well as the modified custom character
+
+Returns: { c1: CustomCharacter, c2: Character }
+
+
+## PUT /character/battle/:charID
+
+Required parameters:
+```
+charID: id of character
+```
+
+This route can only be called by the creator of the specified character
+
+This route finds the specified character and uses them to battle with a random character.
+
+The battle results are determined by calculating Value Points, which are a numeric evaluation of a character's abilities based on their stats.
+
+This route updates the character's wins if they win, or makes them inactive if they lose.
+
+Returns: { 
+	c1: CustomCharacter, 
+	c2: Character, 
+	c1VP: CustomCharacter's Value Points, 
+	c2VP: Opponent's Value Points, 
+	win: boolean (true if your character wins)
+}
+
+## PUT /characters/import/:importURL
+
+Required parameters: URL to import character data from, as a URI Encoded Component. The built-in data source is accessible by calling this route as:
+```
+/characters/import/%2E%2E%2F%2E%2E%2Fherodata%2Ejson
+```
+
+This route is used to load NPC characters into the database, and is only usable by the Database Admin.
+
+The Database Admin is determined by the following environment variable:
+```
+ADMIN_USER_ID=(Admin's Discord ID)
+```
+
+This route should be called at least once when initializing a new database in order to create NPC characters.
+
+Calling this route more than once will result in the Character table being cleared and reloaded with provided data
+
+Returns:
+```js
+{ 
+	charactersAdded: number,
+	unprocessableCharacters: [ 
+		{ 
+			character,
+			violations: [{ValidationErrors}] 
+		} 
+	] 
+}
+```
+
