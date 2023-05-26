@@ -13,12 +13,33 @@ This app can run locally or from **Google App Engine.**
 
 To see the frontend server, please follow Gabriel Beltran's repository: [Cloud Guardian Frontend Server](https://github.com/otakuweebster/crimson-nimbus-frontend)
 
+# Short Version Necessary Setup
+
+Set an environment variable as follows:
+```
+ADMIN_USER_ID=(Your Discord ID)
+```
+
+When the server is running, make a PUT request to the following route:
+
+```
+(server URL)/characters/import/%2E%2E%2F%2E%2E%2Fherodata%2Ejson
+```
+
+Ensure the headers include Authorization: Bearer (A Discord Token with at least Identity scope)
+
+Now it is usable
+
+# Long Version Setup
 
 # Contents
-[Description](#description)
-[Gameplay](#gameplay)
-[Google Cloud Elements](#google-cloud-elements)
-[Routes](#routes)
+##### [Description](#description)
+
+##### [Gameplay](#gameplay)
+
+##### [Google Cloud Elements](#google-cloud-elements)
+
+##### [Routes](#routes)
 
 
 # Description
@@ -30,6 +51,7 @@ And, as this game depicts:
 - **Drafting different attributes from the characters that appear to build the strongest character possible.**
 
 ![Login Page](/images/login-page.png)
+
 This game uses Discord OAuth as a login scheme, so a Discord account is required to log in.
 
 # Gameplay
@@ -38,7 +60,9 @@ Gameplay is split into a few different parts:
 2) Character Battles
 3) Character Rerolls / Stat Modification
 4) High scores from the most powerful characters
+
 ![Main Menu Page](/images/main-menu.png)
+
 ### Character Creation
 By clicking the **NEW CHARACTER** button on the main menu, you are taken to a character creation screen.
 In this screen you will see two textboxes and 8 buttons
@@ -81,6 +105,46 @@ Here you will find a list of characters that you have created and that are able 
 Characters can fight until they are killed, at which point they will no longer be visible on this page.
 
 To use a character in a fight, click their image on the left side and confirm that they appear on the right side. Click **LET 'ER RIP!** to begin the fight.
+
+
+A brief animation will play out and then the results of the game will be shown.
+
+![Winning Game Screen](/images/game-win.png)
+
+The winner is determined by who has the more **VP**, or Value Points.
+VP is calculated by using a character's stats, and enemies will gain more VP from their stats as your character wins more matches.
+
+After winning a battle, click the **Re-roll a stat!** button to proceed to the next menu.
+
+### Stat Re-rolls
+After each match that you win with a character, you are able to re-roll one of their stats.
+
+You are taken to a screen showing your character and their stats and can choose one of their stats to re-roll.
+
+![Stats re-roll page](/images/reroll-empty.png)
+
+After selecting a stat to re-roll, a character will appear on the right side of the screen and you will gain their value in the selected stat category.
+
+![Stats after re-roll](/images/reroll-full.png)
+
+The other stat buttons wil be grayed out at this time, as you may only re-roll one stat per match.
+
+Regardless of whether you choose to re-roll a stat, you may hit the **Continue Fighting** button to proceed to the next battle.
+
+This gameplay loop continues until your character is defeated, at which point they will no longer be selectable for battle.
+
+![Losing battle screen](/images/game-lose.png)
+
+Once your character is defeated, you are able to return to the menu.
+
+### Scoring System
+Scores of characters are based on the number of battles won with that character.
+
+To view your characters' scores, click the **CLOUD HIGH SCORES** button from the main menu.
+
+![High Scores Page](/images/high-scores.png)
+
+You will be able to view your ten highest scoring characters, or the **National Character Scores**, which are the top 10 scores of characters created by any player.
 
 ---------------------
 
@@ -210,6 +274,7 @@ tsc
 
 When this command is finished executing. return to your first terminal and enter Y to continue.
 
+---
 # Routes
 
 All routes require a header of

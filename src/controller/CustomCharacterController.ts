@@ -1,3 +1,7 @@
+/**
+ * @author Tass Suderman
+ * Controller for Crimson Nimbus routes
+ */
 import { Controller, Get, Head, Param, Post, Put, Req, Res } from 'routing-controllers'
 import { AppDataSource, RANDOM_FUNCTION } from '../data-source'
 import { Character } from '../entity/Character'
@@ -25,9 +29,19 @@ const ALLOWED_STATS: any = {
   power: { index: 8, multiplier: 1.1 }
 }
 
+/**
+ * Allowed sizes for Character Images
+ */
 const ALLOWED_SIZE: string[] = ['xs', 'sm', 'md', 'lg']
+
+/**
+ * Allowed mimetypes for CustomCharacter images
+ */
 const ALLOWED_IMAGE_TYPES: string[] = ['image/png', 'image/jpg', 'image/jpeg']
 
+/**
+ * Error messages various errors that may occur with routes
+ */
 const MISSING_ID_ERR: string = 'ID must be provided and numeric'
 const MISSING_STAT_ERR: string =
   `Stat index must be provided and be a number between 1 and ${Object.values(ALLOWED_STATS).length}`
@@ -39,11 +53,22 @@ const CHAR_ENTITY_ERR: string = 'Problem exists with provided hero file.'
 const CHAR_NOT_FOUND: string = 'Character of provided ID not found.'
 const LOGIN_FAILED: string = 'Login failed. Please log out and login again.'
 const CHAR_INACTIVE: string = 'This character is not on duty.'
-const DEFAULT_PFP: string = 'https://discord.com/assets/1f0bfc0865d324c2587920a7d80c609b.png'
-const INITIAL_BUFFER = 3 // Enemies will be weakened for this many rounds before scaling up
 
+// Default Discord Profile Picture
+const DEFAULT_PFP: string = 'https://discord.com/assets/1f0bfc0865d324c2587920a7d80c609b.png'
+
+// Enemies will be weakened for this many rounds before scaling up
+const INITIAL_BUFFER = 3
+
+/**
+ * This class is used as a RoutingController for the Crimson Nimbus game
+ * For detailed explanations about Routes, refer to the README document
+ */
 @Controller()
 export class CustomCharacterController {
+  /**
+   * Various HTTP status codes and the default error message to be returned when they come up
+   */
   public static readonly STATUS_CODES: any = {
     OK_STATUS: { code: 200, message: 'Request has succeeded and is fulfilled.' },
     NO_CONTENT: { code: 204, message: 'Request succeeded.' },
@@ -61,6 +86,10 @@ export class CustomCharacterController {
   public static readonly ASCENDING: string = 'ASC'
 
   public static readonly DELIM: string = ':::'
+
+  /**
+   * Fields which the characters can be sorted by in GET requests
+   */
   public readonly SORT_FIELDS: string[] = ['id', 'creator', 'creator.userName', 'wins', 'isActive', 'name']
 
   private readonly customCharacterRepo: Repository<CustomCharacter> = AppDataSource.getRepository(CustomCharacter)
@@ -79,6 +108,8 @@ export class CustomCharacterController {
   async loginDiscordUser (@Req() req: Request, @Res() res: Response): Promise<any> {
     const uID: string = req.headers.uID as string
     let creator: DiscordUser = await this.userRepo.findOneBy({ uID })
+
+    // If user does not exist, create them with base stats, and then save them
     if (!creator) {
       const { userName, displayName, avatar } = req.headers
       const characters: CustomCharacter[] = []
@@ -86,6 +117,8 @@ export class CustomCharacterController {
       creator = Object.assign(new DiscordUser(), { uID, userName, displayName, avatar, characters, hiScore })
       return await this.userRepo.save(creator)
     }
+
+    // Save the user as they are now, to reflect any updates
     const { userName, displayName, avatar } = req.headers
     creator.userName = userName as string
     creator.displayName = displayName as string
@@ -101,9 +134,10 @@ export class CustomCharacterController {
    */
   @Get('/characters/')
   async getCharacters (@Req() req: Request): Promise<any> {
+    const DEFAULT_LIMIT: string = '100'
     const where: string = req.query.where as string || '%'
     const queryWhere: string = `%${where}`
-    const limit: number = parseInt(req.query?.limit as string || '100')
+    const limit: number = parseInt(req.query?.limit as string || DEFAULT_LIMIT)
     const sortOptions: any = this.getSortOptions(req)
     return await this.customCharacterRepo
       .createQueryBuilder('customChar')
@@ -214,6 +248,11 @@ export class CustomCharacterController {
     if (!customCharacter) {
       return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.ITEM_NOT_FOUND, CHAR_NOT_FOUND)
     }
+
+    // Only the creator of a character can change the character's data
+    if (customCharacter.creator.uID !== uID) {
+      return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.UNAUTHORIZED_STATUS, UNAUTHORIZED_ERR)
+    }
     const name: string = req.body.name as string || customCharacter.name
     const url: string = req.body.url as string || customCharacter.url
     customCharacter.name = name
@@ -281,7 +320,7 @@ export class CustomCharacterController {
    * This route should in theory only be called after battles, but no such state check is in place at this time
    * This route takes in an ID and a stat from the URL
    * If id/stats are out of range or not provided, such errors will be displayed
-   * If all is successful, character stats will be updated and the character eill be returned in the body as c1, with
+   * If all is successful, character stats will be updated and the character will be returned in the body as c1, with
    * the donor character returned as c2
    * @param req
    * @param res
@@ -337,6 +376,8 @@ export class CustomCharacterController {
     if (!uID || id < 0) {
       return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.BAD_REQUEST)
     }
+
+    // This error occurs if this user has never been initialized with the /login route
     const user: DiscordUser = await this.userRepo.findOneBy({ uID })
     if (!user) {
       return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.UNAUTHORIZED_STATUS, LOGIN_FAILED)
@@ -345,18 +386,28 @@ export class CustomCharacterController {
     if (!customChar) {
       return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.ITEM_NOT_FOUND, CHAR_NOT_FOUND)
     }
+
+    // This route can only be used by the character's creator
     if (customChar.creator.uID !== uID) {
       return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.UNAUTHORIZED_STATUS, UNAUTHORIZED_ERR)
     }
+
+    // Characters cannot battle when dead
     if (!customChar.isActive) {
       return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.BAD_REQUEST, CHAR_INACTIVE)
     }
+
+    // This can only happen if there are no characters in the database to fight
     const opponent: Character = await this.characterRepo.createQueryBuilder().addOrderBy(RANDOM_FUNCTION).getOne()
     if (!opponent) {
       return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.INTERNAL_SERVER_ERROR)
     }
+
+    // VP is calculated to find the winner
     const customCharValuePoints: number = this.calculateValuePoints(customChar, 0, 0)
     const opponentValuePoints: number = this.calculateValuePoints(opponent, customChar.wins, INITIAL_BUFFER)
+
+    // Character death route
     if (opponentValuePoints > customCharValuePoints) {
       customChar.isActive = false
       await this.customCharacterRepo.save(customChar)
@@ -365,6 +416,7 @@ export class CustomCharacterController {
         await this.userRepo.save(user)
       }
     } else {
+      // The player wins in the case of a tie, because losing to a tie is not fun
       customChar.wins++
       await this.customCharacterRepo.save(customChar)
     }
@@ -448,8 +500,6 @@ export class CustomCharacterController {
       if (discordUser.id && discordUser.username) {
         const avatarLink = discordUser.avatar
           ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.webp`
-          // TODO remove this line and instead return empty string when no avatar if default pfp asset is created
-          //  on frontend
           : DEFAULT_PFP
         const displayName = discordUser.displayName ?? ''
         return `${discordUser.id}${delim}${discordUser.username}${delim}${displayName}${delim}${avatarLink}`
@@ -515,9 +565,9 @@ export class CustomCharacterController {
 
   /**
    * This function takes in a Character or CustomCharacter and returns their value points
-   * @param character
-   * @param wins
-   * @param buffer
+   * @param character {Character|CustomCharacterController} Character to calculate for
+   * @param wins {number} Number of times to buff the character's VP. Only used to make NPCs more powerful over time
+   * @param buffer Number of times to nerf the character's VP, used to make enemies weaker in the first few rounds so the player has a chance to catch up
    */
   calculateValuePoints (character: CustomCharacter | Character, wins: number, buffer: number): number {
     let returnVP: number = 0

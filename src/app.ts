@@ -19,7 +19,6 @@ const ROUTE_NOT_FOUND: any = {
 
 // CORS options
 const corsOptions = {
-  // TODO Allow for GCloud origin here
   origin: /(localhost:\d{4,5}|.*appspot.*)$/i,
   credentials: true,
   allowedHeaders: 'Origin,X-Requested-With,Content-Type,Accept,Authorization',

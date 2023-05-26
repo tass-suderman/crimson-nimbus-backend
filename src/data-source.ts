@@ -11,6 +11,7 @@ config()
 const entities = [Character, DiscordUser, CustomCharacter]
 const DEFAULT_NAME = 'crimson-nimbus.db'
 
+// Use SQLite unless production
 const DEV_DB = {
   type: 'better-sqlite3',
   database: DEFAULT_NAME,
@@ -32,8 +33,6 @@ if (process.env?.NODE_ENV?.toUpperCase() === 'PRODUCTION') {
     username: process.env.DB_USER || 'user',
     password: process.env.DB_PASSWORD || 'password',
     synchronize: true
-    // TODO export schema after it is created and then import it as entitySchemas argument
-    //  See more https://orkhan.gitbook.io/typeorm/docs/data-source-options
   }
 } else {
   dbOptions = DEV_DB
