@@ -57,18 +57,18 @@ Beside the button you will see a character and their stats.
 For each character in the list, you can choose one of their stats to add to your character by clicking the corresponding button.
 You may only pick one stat from each character and cannot change a stat in this pool after it is selected.
 
-![New Character Page with fields filled out](new-character-filled.png)
+![New Character Page with fields filled out](/images/new-character-filled.png)
 
 After all stats are selected and your character is given a name and an image URL, click **Transmit New User** to add them to the character database.
 
-![Character successfully transmitted](character-transmitted.png)
+![Character successfully transmitted](/images/character-transmitted.png)
 
 ### Character Battles
 After a character has been created, they can be used in battle. 
 
 Click the **FIGHT** button and you will be taken to the character select screen.
 
-![Character Select Screen](character-select.png)
+![Character Select Screen](/images/character-select.png)
 
 Here you will find a list of characters that you have created and that are able to fight.
 
@@ -87,12 +87,12 @@ Google's cloud offerings include SQL databases, which are able to be used in pla
 ##### Creating an SQL Instance
 To set up Cloud SQL, navigate to the Cloud SQL page in the Google Cloud console, and click Create Instance.
 
-![SQL Search results on Google Cloud Console](sql-search.png)
+![SQL Search results on Google Cloud Console](/images/sql-search.png)
 
-![SQL Instance Button on Cloud Console](sql-instance.png)
+![SQL Instance Button on Cloud Console](/images/sql-instance.png)
 
 In the instance setup process, choose MySQL as your database engine.
-![Selecting MySQL as Database Engine](sql-Engine.png)
+![Selecting MySQL as Database Engine](/images/sql-Engine.png)
 
 If prompted to enable Google Compute Engine API, do so.
 
