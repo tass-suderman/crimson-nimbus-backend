@@ -92,6 +92,7 @@ To set up Cloud SQL, navigate to the Cloud SQL page in the Google Cloud console,
 ![SQL Instance Button on Cloud Console](/images/sql-instance.png)
 
 In the instance setup process, choose MySQL as your database engine.
+
 ![Selecting MySQL as Database Engine](/images/sql-Engine.png)
 
 If prompted to enable Google Compute Engine API, do so.
