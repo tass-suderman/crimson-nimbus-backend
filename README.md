@@ -1,5 +1,5 @@
 # The Legendary Cloud Guardian
-![[cloud-guardian.png]]
+![Cloud Guardian Logo](/images/cloud-guardian.png)
 ## In a world torn apart by cyberattacks, a lone guardian takes to the clouds in order to fight back. That guardian is you.
 
 ### This portion is the backend server for the Legendary Cloud Guardian
@@ -23,7 +23,7 @@ Some examples of this trend include:
 And, as this game depicts:
 - **Drafting different attributes from the characters that appear to build the strongest character possible.**
 
-![[login-page.png]]
+![Login Page](/images/login-page.png)
 This game uses Discord OAuth as a login scheme, so a Discord account is required to log in.
 
 ## Gameplay
@@ -32,12 +32,12 @@ Gameplay is split into a few different parts:
 2) Character Battles
 3) Character Rerolls / Stat Modification
 4) High scores from the most powerful characters
-![[main-menu.png]]
+![Main Menu Page](/images/main-menu.png)
 ### Character Creation
 By clicking the **NEW CHARACTER** button on the main menu, you are taken to a character creation screen.
 In this screen you will see two textboxes and 8 buttons
 
-![[new-character.png]]
+![New Character Screen](/images/new-character.png)
 
 The textboxes are to contain:
 1) Character Name (1-12 Characters)
@@ -57,18 +57,18 @@ Beside the button you will see a character and their stats.
 For each character in the list, you can choose one of their stats to add to your character by clicking the corresponding button.
 You may only pick one stat from each character and cannot change a stat in this pool after it is selected.
 
-![[new-character-filled.png]]
+![New Character Page with fields filled out](new-character-filled.png)
 
 After all stats are selected and your character is given a name and an image URL, click **Transmit New User** to add them to the character database.
 
-![[character-transmitted.png]]
+![Character successfully transmitted](character-transmitted.png)
 
 ### Character Battles
 After a character has been created, they can be used in battle. 
 
 Click the **FIGHT** button and you will be taken to the character select screen.
 
-![[character-select.png]]
+![Character Select Screen](character-select.png)
 
 Here you will find a list of characters that you have created and that are able to fight.
 
@@ -87,12 +87,12 @@ Google's cloud offerings include SQL databases, which are able to be used in pla
 ##### Creating an SQL Instance
 To set up Cloud SQL, navigate to the Cloud SQL page in the Google Cloud console, and click Create Instance.
 
-![[sql-search.png]]
+![SQL Search results on Google Cloud Console](sql-search.png)
 
-![[sql-instance.png]]
+![SQL Instance Button on Cloud Console](sql-instance.png)
 
 In the instance setup process, choose MySQL as your database engine.
-![[sql-Engine.png]]
+![Selecting MySQL as Database Engine](sql-Engine.png)
 
 If prompted to enable Google Compute Engine API, do so.
 
