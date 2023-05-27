@@ -12,10 +12,8 @@ import { DiscordUser } from '../entity/DiscordUser'
 import fetch, { Headers } from 'node-fetch'
 import { config } from 'dotenv'
 import { Repository } from 'typeorm'
-import { Storage } from '@google-cloud/storage'
 config()
 const DISCORD_URL: string = 'https://discord.com/api/v9/users/@me'
-const GOOGLE_URL: string = 'https://storage.googleapis.com'
 const AUTHORIZATION_HEADER: string = 'Authorization'
 
 const ALLOWED_STATS: any = {
@@ -33,11 +31,6 @@ const ALLOWED_STATS: any = {
  * Allowed sizes for Character Images
  */
 const ALLOWED_SIZE: string[] = ['xs', 'sm', 'md', 'lg']
-
-/**
- * Allowed mimetypes for CustomCharacter images
- */
-const ALLOWED_IMAGE_TYPES: string[] = ['image/png', 'image/jpg', 'image/jpeg']
 
 /**
  * Error messages various errors that may occur with routes
@@ -276,24 +269,7 @@ export class CustomCharacterController {
     if (!creator) {
       return this.exitWithMessage(res, CustomCharacterController.STATUS_CODES.UNAUTHORIZED_STATUS, LOGIN_FAILED)
     }
-    const { strength, weight, height, intelligence, power, combat, durability, speed, name } = req.body
-    let { url } = req.body
-    if (process.env.BUCKET) {
-      const fileName: string = req.headers.uID as string + new Date().valueOf().toString()
-      const resImage = await fetch(url)
-      const mimetype = resImage.headers.get('content-type')
-      if (ALLOWED_IMAGE_TYPES.includes(mimetype)) {
-        const storage = new Storage()
-        const bucket = storage.bucket(process.env.BUCKET)
-        const imageExtension: string = `.${mimetype.split('/')[1]}`
-        const file = bucket.file(fileName + imageExtension)
-        const writeStream = file.createWriteStream()
-        if (resImage.ok) {
-          resImage.body.pipe(writeStream)
-        }
-        url = `${GOOGLE_URL}/${process.env.BUCKET}/${fileName}${imageExtension}`
-      }
-    }
+    const { url, strength, weight, height, intelligence, power, combat, durability, speed, name } = req.body
     const wins: number = 0
     const isActive: boolean = true
     const newCharacter: CustomCharacter = Object.assign(new CustomCharacter(), {
