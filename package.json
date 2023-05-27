@@ -30,7 +30,7 @@
   },
   "scripts": {
     "start-transpile": "ts-node-dev --respawn --transpile-only src/app.ts",
-    "start": "node build/app.js"
+    "start": "node app.js"
   },
   "overrides": {
     "routing-controllers@0.9.0": {
